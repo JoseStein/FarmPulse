@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+* { border-color: #e3e9e5; }
+body { @apply bg-[#f5f7f4] text-ink antialiased; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { @apply outline-none ring-2 ring-farm-500 ring-offset-2; }
+.card { @apply rounded-2xl border border-[#e3e9e5] bg-white shadow-card; }
+.label { @apply mb-1.5 block text-sm font-semibold text-[#385349]; }
+.input { @apply h-11 w-full rounded-xl border bg-white px-3 text-sm text-ink placeholder:text-slate-400; }
+.btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-farm-700 px-4 text-sm font-semibold text-white transition hover:bg-farm-900 disabled:opacity-50; }
+.btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-white px-4 text-sm font-semibold text-ink transition hover:bg-farm-50; }
+.badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }
+@media (max-width: 767px) { .desktop-only { display:none!important; } }
+@media (min-width: 768px) { .mobile-only { display:none!important; } }

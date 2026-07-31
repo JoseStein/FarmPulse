@@ -1,0 +1,573 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum TaskStatus {
+  PLANNED
+  DUE_TODAY
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+  OVERDUE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActivityType {
+  PLANTING
+  IRRIGATION
+  FERTILIZER_APPLICATION
+  PESTICIDE_APPLICATION
+  HERBICIDE_APPLICATION
+  PEST_INSPECTION
+  DISEASE_INSPECTION
+  WEED_CONTROL
+  SOIL_WORK
+  EQUIPMENT_MAINTENANCE
+  RAINFALL_OBSERVATION
+  FIELD_OBSERVATION
+  HARVEST
+  OTHER
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum RecommendationType {
+  IRRIGATE_TODAY
+  MONITOR
+  DELAY
+  SKIP_RAIN
+  NONE
+}
+
+model User {
+  id             String           @id @default(uuid()) @db.Uuid
+  email          String           @unique
+  name           String
+  passwordHash   String
+  role           Role             @default(OPERATOR)
+  active         Boolean          @default(true)
+  memberships    FarmMembership[]
+  assignedTasks  Task[]           @relation("TaskAssignee")
+  activities     Activity[]       @relation("ActivityCreator")
+  expenses       Expense[]        @relation("ExpenseCreator")
+  notes          FieldNote[]      @relation("NoteCreator")
+  completedTasks Task[]           @relation("TaskCompleter")
+  assignedIssues Issue[]          @relation("IssueAssignee")
+  resolvedIssues Issue[]          @relation("IssueResolver")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model Farm {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String
+  country     String
+  timezone    String
+  currency    String           @default("USD")
+  unitSystem  String           @default("METRIC")
+  latitude    Decimal          @db.Decimal(9, 6)
+  longitude   Decimal          @db.Decimal(9, 6)
+  memberships FarmMembership[]
+  fields      Field[]
+  budgets     Budget[]
+  inventory   InventoryItem[]
+  equipment   Equipment[]
+  settings    AppSetting[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model FarmMembership {
+  id     String @id @default(uuid()) @db.Uuid
+  farmId String @db.Uuid
+  userId String @db.Uuid
+  role   Role
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+  @@index([userId])
+}
+
+model Field {
+  id         String      @id @default(uuid()) @db.Uuid
+  farmId     String      @db.Uuid
+  name       String
+  areaHa     Decimal     @db.Decimal(10, 3)
+  status     Status      @default(ACTIVE)
+  farm       Farm        @relation(fields: [farmId], references: [id])
+  sectors    Sector[]
+  cycles     CropCycle[]
+  tasks      Task[]
+  activities Activity[]
+  expenses   Expense[]
+  notes      FieldNote[]
+  issues     Issue[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
+
+  @@index([farmId, status])
+}
+
+model Sector {
+  id               String            @id @default(uuid()) @db.Uuid
+  fieldId          String            @db.Uuid
+  name             String
+  dripLines        Int
+  status           String            @default("Healthy")
+  field            Field             @relation(fields: [fieldId], references: [id])
+  cycleSectors     CropCycleSector[]
+  tasks            Task[]
+  activities       Activity[]
+  irrigationEvents IrrigationEvent[]
+  expenses         Expense[]
+  notes            FieldNote[]
+  issues           Issue[]
+
+  @@unique([fieldId, name])
+}
+
+model Crop {
+  id             String        @id @default(uuid()) @db.Uuid
+  name           String        @unique
+  scientificName String?
+  cycles         CropCycle[]
+  stages         GrowthStage[]
+  guides         CropGuide[]
+}
+
+model GrowthStage {
+  id     String      @id @default(uuid()) @db.Uuid
+  cropId String      @db.Uuid
+  name   String
+  order  Int
+  crop   Crop        @relation(fields: [cropId], references: [id])
+  cycles CropCycle[]
+
+  @@unique([cropId, name])
+}
+
+model CropCycle {
+  id                  String            @id @default(uuid()) @db.Uuid
+  fieldId             String            @db.Uuid
+  cropId              String            @db.Uuid
+  growthStageId       String?           @db.Uuid
+  variety             String?
+  plannedPlantingDate DateTime
+  actualPlantingDate  DateTime?
+  expectedHarvestDate DateTime?
+  actualHarvestDate   DateTime?
+  seedQuantityKg      Decimal?          @db.Decimal(10, 2)
+  populationTarget    Int?
+  expectedYieldKg     Decimal?          @db.Decimal(12, 2)
+  actualYieldKg       Decimal?          @db.Decimal(12, 2)
+  status              Status            @default(ACTIVE)
+  notes               String?
+  field               Field             @relation(fields: [fieldId], references: [id])
+  crop                Crop              @relation(fields: [cropId], references: [id])
+  growthStage         GrowthStage?      @relation(fields: [growthStageId], references: [id])
+  sectors             CropCycleSector[]
+  tasks               Task[]
+  activities          Activity[]
+  expenses            Expense[]
+  budgets             Budget[]
+  fieldNotes          FieldNote[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([fieldId, status])
+}
+
+model CropCycleSector {
+  cropCycleId String    @db.Uuid
+  sectorId    String    @db.Uuid
+  cropCycle   CropCycle @relation(fields: [cropCycleId], references: [id], onDelete: Cascade)
+  sector      Sector    @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
+  @@id([cropCycleId, sectorId])
+}
+
+model Task {
+  id              String     @id @default(uuid()) @db.Uuid
+  fieldId         String     @db.Uuid
+  sectorId        String?    @db.Uuid
+  cropCycleId     String?    @db.Uuid
+  assignedUserId  String?    @db.Uuid
+  name            String
+  description     String?
+  category        String
+  priority        Priority   @default(MEDIUM)
+  dueAt           DateTime
+  recurrence      String?
+  status          TaskStatus @default(PLANNED)
+  completionNotes String?
+  completedAt     DateTime?
+  completedById   String?    @db.Uuid
+  field           Field      @relation(fields: [fieldId], references: [id])
+  sector          Sector?    @relation(fields: [sectorId], references: [id])
+  cropCycle       CropCycle? @relation(fields: [cropCycleId], references: [id])
+  assignedUser    User?      @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  completedBy     User?      @relation("TaskCompleter", fields: [completedById], references: [id])
+  relatedActivity Activity?  @relation("CompletedTask")
+  followUpFor     Issue?     @relation("IssueFollowUp")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([fieldId, status, dueAt])
+}
+
+model Activity {
+  id                String           @id @default(uuid()) @db.Uuid
+  fieldId           String           @db.Uuid
+  sectorId          String?          @db.Uuid
+  cropCycleId       String?          @db.Uuid
+  createdById       String           @db.Uuid
+  type              ActivityType
+  occurredAt        DateTime
+  startTime         DateTime?
+  endTime           DateTime?
+  quantity          Decimal?         @db.Decimal(12, 3)
+  unit              String?
+  productUsed       String?
+  worker            String?
+  cost              Decimal?         @db.Decimal(12, 2)
+  notes             String?
+  idempotencyKey    String?          @unique
+  weatherSnapshotId String?          @db.Uuid
+  field             Field            @relation(fields: [fieldId], references: [id])
+  sector            Sector?          @relation(fields: [sectorId], references: [id])
+  cropCycle         CropCycle?       @relation(fields: [cropCycleId], references: [id])
+  createdBy         User             @relation("ActivityCreator", fields: [createdById], references: [id])
+  weatherSnapshot   WeatherSnapshot? @relation(fields: [weatherSnapshotId], references: [id])
+  irrigationEvent   IrrigationEvent?
+  completedTask     Task?            @relation("CompletedTask", fields: [completedTaskId], references: [id])
+  completedTaskId   String?          @unique @db.Uuid
+  attachments       Attachment[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([fieldId, occurredAt])
+}
+
+model IrrigationEvent {
+  id                 String    @id @default(uuid()) @db.Uuid
+  sectorId           String    @db.Uuid
+  activityId         String?   @unique @db.Uuid
+  startedAt          DateTime
+  durationMinutes    Int
+  flowM3h            Decimal   @db.Decimal(8, 2)
+  estimatedLiters    Decimal   @db.Decimal(12, 2)
+  pressureBar        Decimal?  @db.Decimal(5, 2)
+  pumpRuntimeMinutes Int?
+  operator           String
+  notes              String?
+  problems           String?
+  sector             Sector    @relation(fields: [sectorId], references: [id])
+  activity           Activity? @relation(fields: [activityId], references: [id])
+  createdAt          DateTime  @default(now())
+
+  @@index([sectorId, startedAt])
+}
+
+model WeatherSnapshot {
+  id              String     @id @default(uuid()) @db.Uuid
+  farmId          String     @db.Uuid
+  observedAt      DateTime
+  temperatureC    Decimal?   @db.Decimal(5, 2)
+  humidityPct     Int?
+  windKph         Decimal?   @db.Decimal(6, 2)
+  precipitationMm Decimal?   @db.Decimal(7, 2)
+  rainProbability Int?
+  payload         Json?
+  createdAt       DateTime   @default(now())
+  activities      Activity[]
+
+  @@index([farmId, observedAt])
+}
+
+model WeatherAlert {
+  id        String    @id @default(uuid()) @db.Uuid
+  farmId    String    @db.Uuid
+  title     String
+  message   String
+  severity  Priority
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model Recommendation {
+  id          String             @id @default(uuid()) @db.Uuid
+  sectorId    String?            @db.Uuid
+  type        RecommendationType
+  title       String
+  reason      String
+  action      String
+  reviewedAt  DateTime?
+  dismissedAt DateTime?
+  createdAt   DateTime           @default(now())
+}
+
+model Expense {
+  id             String       @id @default(uuid()) @db.Uuid
+  fieldId        String       @db.Uuid
+  sectorId       String?      @db.Uuid
+  cropCycleId    String?      @db.Uuid
+  enteredById    String       @db.Uuid
+  date           DateTime
+  vendor         String?
+  description    String
+  category       String
+  amount         Decimal      @db.Decimal(12, 2)
+  currency       String       @default("USD")
+  quantity       Decimal?     @db.Decimal(12, 3)
+  unitCost       Decimal?     @db.Decimal(12, 2)
+  notes          String?
+  idempotencyKey String?      @unique
+  field          Field        @relation(fields: [fieldId], references: [id])
+  sector         Sector?      @relation(fields: [sectorId], references: [id])
+  cropCycle      CropCycle?   @relation(fields: [cropCycleId], references: [id])
+  enteredBy      User         @relation("ExpenseCreator", fields: [enteredById], references: [id])
+  attachments    Attachment[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  @@index([fieldId, date, category])
+}
+
+model Budget {
+  id            String     @id @default(uuid()) @db.Uuid
+  farmId        String     @db.Uuid
+  cropCycleId   String?    @db.Uuid
+  name          String
+  plannedAmount Decimal    @db.Decimal(12, 2)
+  currency      String     @default("USD")
+  farm          Farm       @relation(fields: [farmId], references: [id])
+  cropCycle     CropCycle? @relation(fields: [cropCycleId], references: [id])
+  createdAt     DateTime   @default(now())
+}
+
+model InventoryItem {
+  id               String                 @id @default(uuid()) @db.Uuid
+  farmId           String                 @db.Uuid
+  name             String
+  category         String
+  quantityOnHand   Decimal                @db.Decimal(12, 3)
+  unit             String
+  minimumThreshold Decimal                @db.Decimal(12, 3)
+  unitCost         Decimal?               @db.Decimal(12, 2)
+  supplier         String?
+  storageLocation  String?
+  expirationDate   DateTime?
+  notes            String?
+  farm             Farm                   @relation(fields: [farmId], references: [id])
+  transactions     InventoryTransaction[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  deletedAt        DateTime?
+
+  @@index([farmId, category])
+}
+
+model InventoryTransaction {
+  id         String        @id @default(uuid()) @db.Uuid
+  itemId     String        @db.Uuid
+  quantity   Decimal       @db.Decimal(12, 3)
+  type       String
+  reason     String?
+  activityId String?       @db.Uuid
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+  createdAt  DateTime      @default(now())
+
+  @@index([itemId, createdAt])
+}
+
+model Equipment {
+  id                 String              @id @default(uuid()) @db.Uuid
+  farmId             String              @db.Uuid
+  name               String
+  type               String
+  manufacturer       String?
+  model              String?
+  serialNumber       String?
+  purchaseDate       DateTime?
+  status             String
+  runtimeHours       Decimal?            @db.Decimal(10, 1)
+  lastMaintenance    DateTime?
+  nextMaintenance    DateTime?
+  notes              String?
+  farm               Farm                @relation(fields: [farmId], references: [id])
+  maintenanceRecords MaintenanceRecord[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model MaintenanceRecord {
+  id           String    @id @default(uuid()) @db.Uuid
+  equipmentId  String    @db.Uuid
+  performedAt  DateTime
+  description  String
+  cost         Decimal?  @db.Decimal(12, 2)
+  runtimeHours Decimal?  @db.Decimal(10, 1)
+  notes        String?
+  equipment    Equipment @relation(fields: [equipmentId], references: [id])
+  createdAt    DateTime  @default(now())
+}
+
+model FieldNote {
+  id             String       @id @default(uuid()) @db.Uuid
+  fieldId        String       @db.Uuid
+  sectorId       String?      @db.Uuid
+  cropCycleId    String?      @db.Uuid
+  createdById    String       @db.Uuid
+  category       String
+  body           String
+  isIssue        Boolean      @default(false)
+  idempotencyKey String?      @unique
+  field          Field        @relation(fields: [fieldId], references: [id])
+  sector         Sector?      @relation(fields: [sectorId], references: [id])
+  cropCycle      CropCycle?   @relation(fields: [cropCycleId], references: [id])
+  createdBy      User         @relation("NoteCreator", fields: [createdById], references: [id])
+  attachments    Attachment[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  issue          Issue?
+}
+
+model Attachment {
+  id          String     @id @default(uuid()) @db.Uuid
+  storageKey  String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  activityId  String?    @db.Uuid
+  expenseId   String?    @db.Uuid
+  fieldNoteId String?    @db.Uuid
+  activity    Activity?  @relation(fields: [activityId], references: [id])
+  expense     Expense?   @relation(fields: [expenseId], references: [id])
+  fieldNote   FieldNote? @relation(fields: [fieldNoteId], references: [id])
+  createdAt   DateTime   @default(now())
+}
+
+model Issue {
+  id              String      @id @default(uuid()) @db.Uuid
+  fieldId         String      @db.Uuid
+  sectorId        String?     @db.Uuid
+  fieldNoteId     String?     @unique @db.Uuid
+  assignedUserId  String?     @db.Uuid
+  resolvedById    String?     @db.Uuid
+  followUpTaskId  String?     @unique @db.Uuid
+  title           String
+  category        String
+  severity        Priority
+  status          IssueStatus @default(OPEN)
+  description     String?
+  resolutionNotes String?
+  field           Field       @relation(fields: [fieldId], references: [id])
+  sector          Sector?     @relation(fields: [sectorId], references: [id])
+  fieldNote       FieldNote?  @relation(fields: [fieldNoteId], references: [id])
+  assignedUser    User?       @relation("IssueAssignee", fields: [assignedUserId], references: [id])
+  resolvedBy      User?       @relation("IssueResolver", fields: [resolvedById], references: [id])
+  followUpTask    Task?       @relation("IssueFollowUp", fields: [followUpTaskId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  resolvedAt      DateTime?
+
+  @@index([fieldId, status])
+}
+
+model CropGuide {
+  id        String             @id @default(uuid()) @db.Uuid
+  cropId    String             @db.Uuid
+  title     String
+  crop      Crop               @relation(fields: [cropId], references: [id])
+  articles  CropGuideArticle[]
+  createdAt DateTime           @default(now())
+}
+
+model CropGuideArticle {
+  id                  String    @id @default(uuid()) @db.Uuid
+  guideId             String    @db.Uuid
+  title               String
+  summary             String
+  content             String
+  stage               String?
+  category            String
+  severity            Priority?
+  sourceName          String?
+  sourceUrl           String?
+  lastReviewedAt      DateTime?
+  regionApplicability String?
+  adminNotes          String?
+  guide               CropGuide @relation(fields: [guideId], references: [id])
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([guideId, category])
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  farmId     String?  @db.Uuid
+  userId     String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([farmId, createdAt])
+}
+
+model AppSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  farmId    String   @db.Uuid
+  key       String
+  value     Json
+  farm      Farm     @relation(fields: [farmId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  @@unique([farmId, key])
+}
