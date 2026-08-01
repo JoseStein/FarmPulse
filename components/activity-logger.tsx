@@ -58,12 +58,174 @@ const allTypes = [
   ["Soil work", "SOIL_WORK"],
   ["Harvest", "HARVEST"],
 ] as const;
+type FormConfig = {
+  title: string;
+  description: string;
+  product?: { label: string; placeholder: string; required?: boolean };
+  quantity?: { label: string; placeholder?: string; required?: boolean; step?: string };
+  units?: readonly string[];
+  unitLabel?: string;
+  unitPlaceholder?: string;
+  inventory?: boolean;
+  cost?: boolean;
+  endTime?: boolean;
+  notesLabel: string;
+  notesPlaceholder: string;
+};
+const activityForms: Record<string, FormConfig> = {
+  IRRIGATION: {
+    title: "Irrigation details",
+    description: "Record the sector, duration, flow, and pressure used.",
+    notesLabel: "Irrigation notes (optional)",
+    notesPlaceholder: "Leaks, pressure changes, runoff, or other observations…",
+  },
+  PLANTING: {
+    title: "Planting details",
+    description: "Choose the crop and record the seed or planting material used.",
+    product: { label: "Seed lot or source (optional)", placeholder: "Supplier, lot number, or source" },
+    quantity: { label: "Seed or planting-material quantity", required: true },
+    units: ["kg", "g", "seeds", "seedlings", "cuttings", "trays"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Planting notes (optional)",
+    notesPlaceholder: "Spacing, row pattern, soil condition, or planting method…",
+  },
+  FERTILIZER_APPLICATION: {
+    title: "Fertilizer application",
+    description: "Record the fertilizer, applied amount, and stock used.",
+    product: { label: "Fertilizer or amendment", placeholder: "Product or formulation", required: true },
+    quantity: { label: "Amount applied", required: true },
+    units: ["kg", "g", "L", "mL", "kg/ha", "L/ha"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Application notes (optional)",
+    notesPlaceholder: "Application method, rate details, weather, or coverage…",
+  },
+  PESTICIDE_APPLICATION: {
+    title: "Pesticide application",
+    description: "Record the treatment product, amount, and application details.",
+    product: { label: "Pesticide product", placeholder: "Product or active ingredient", required: true },
+    quantity: { label: "Amount applied", required: true },
+    units: ["L", "mL", "kg", "g", "L/ha", "kg/ha"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Treatment notes (optional)",
+    notesPlaceholder: "Target pest, application method, weather, and safety interval…",
+  },
+  HERBICIDE_APPLICATION: {
+    title: "Herbicide application",
+    description: "Record the herbicide, application amount, and area treatment details.",
+    product: { label: "Herbicide product", placeholder: "Product or active ingredient", required: true },
+    quantity: { label: "Amount applied", required: true },
+    units: ["L", "mL", "kg", "g", "L/ha", "kg/ha"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Treatment notes (optional)",
+    notesPlaceholder: "Target weeds, application method, weather, and treated area…",
+  },
+  PEST_INSPECTION: {
+    title: "Pest inspection",
+    description: "Identify the pest and estimate how much of the field is affected.",
+    product: { label: "Pest observed", placeholder: "For example: aphids or fall armyworm", required: true },
+    quantity: { label: "Affected count or area (optional)" },
+    units: ["plants", "traps", "count", "% area"],
+    notesLabel: "Inspection findings (optional)",
+    notesPlaceholder: "Location, severity, life stage, damage, and recommended action…",
+  },
+  DISEASE_INSPECTION: {
+    title: "Disease inspection",
+    description: "Record the disease or symptoms and the estimated extent.",
+    product: { label: "Disease or symptom observed", placeholder: "Disease name or visible symptoms", required: true },
+    quantity: { label: "Affected count or area (optional)" },
+    units: ["plants", "count", "% area", "ha"],
+    notesLabel: "Inspection findings (optional)",
+    notesPlaceholder: "Severity, distribution, photos taken, and recommended action…",
+  },
+  FIELD_OBSERVATION: {
+    title: "Field observation",
+    description: "Record a crop, soil, drainage, wildlife, or field-condition observation.",
+    product: { label: "Observation topic", placeholder: "For example: crop condition or drainage", required: true },
+    notesLabel: "Observation details (optional)",
+    notesPlaceholder: "Describe what you saw and where it occurred…",
+  },
+  EQUIPMENT_MAINTENANCE: {
+    title: "Equipment maintenance",
+    description: "Identify the equipment and record labor, parts, and cost.",
+    product: { label: "Equipment or asset", placeholder: "Pump, tractor, filter, or other asset", required: true },
+    quantity: { label: "Labor or downtime (optional)", step: "0.1" },
+    units: ["hours", "minutes"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Maintenance performed (optional)",
+    notesPlaceholder: "Work completed, parts replaced, meter reading, and next service…",
+  },
+  RAINFALL_OBSERVATION: {
+    title: "Rainfall observation",
+    description: "Record the measured rainfall at the field.",
+    quantity: { label: "Rainfall amount", required: true },
+    units: ["mm", "in"],
+    notesLabel: "Rainfall notes (optional)",
+    notesPlaceholder: "Gauge location, storm duration, flooding, or drainage conditions…",
+  },
+  WEED_CONTROL: {
+    title: "Weed control",
+    description: "Record the control method and the area treated.",
+    product: { label: "Control method or product", placeholder: "Manual, mechanical, mulch, or product", required: true },
+    quantity: { label: "Area treated (optional)" },
+    units: ["ha", "m²", "% field"],
+    inventory: true,
+    cost: true,
+    endTime: true,
+    notesLabel: "Weed-control notes (optional)",
+    notesPlaceholder: "Target weeds, method, crew, and effectiveness…",
+  },
+  SOIL_WORK: {
+    title: "Soil work",
+    description: "Record the land-preparation operation and area completed.",
+    product: { label: "Soil operation", placeholder: "Tillage, bed forming, leveling, or amendment", required: true },
+    quantity: { label: "Area worked (optional)" },
+    units: ["ha", "m²", "hours"],
+    cost: true,
+    endTime: true,
+    notesLabel: "Soil-work notes (optional)",
+    notesPlaceholder: "Equipment, depth, passes, moisture, or soil condition…",
+  },
+  HARVEST: {
+    title: "Harvest details",
+    description: "Record the harvested quantity and grade or batch information.",
+    product: { label: "Grade or batch (optional)", placeholder: "Grade, batch, destination, or buyer" },
+    quantity: { label: "Harvested quantity", required: true },
+    units: ["kg", "t", "lb", "crates", "bags", "units"],
+    cost: true,
+    endTime: true,
+    notesLabel: "Harvest notes (optional)",
+    notesPlaceholder: "Quality, losses, crew, destination, or storage details…",
+  },
+  OTHER: {
+    title: "Other activity",
+    description: "Name the activity and record only the measurements that apply.",
+    product: { label: "Activity name", placeholder: "What work or event occurred?", required: true },
+    quantity: { label: "Quantity (optional)" },
+    unitLabel: "Unit (optional)",
+    unitPlaceholder: "kg, hours, units…",
+    cost: true,
+    endTime: true,
+    notesLabel: "Activity details (optional)",
+    notesPlaceholder: "Add any details needed to understand this activity…",
+  },
+};
 const initialMap: Record<string, string> = {
   irrigation: "IRRIGATION",
   fertilizer: "FERTILIZER_APPLICATION",
   pest: "PEST_INSPECTION",
   observation: "FIELD_OBSERVATION",
 };
+const activityValues = new Set<string>([...types, ...allTypes].map(([, value]) => value));
 
 export function ActivityLogger({
   data,
@@ -75,7 +237,7 @@ export function ActivityLogger({
   initialSector?: string;
 }) {
   const initial =
-    initialMap[initialType ?? ""] ?? (types.some(([, v]) => v === initialType) ? initialType : "IRRIGATION");
+    initialMap[initialType ?? ""] ?? (activityValues.has(initialType ?? "") ? initialType : "IRRIGATION");
   const [type, setType] = useState(initial);
   const [sectorId, setSectorId] = useState(
     data.sectors.some((s) => s.id === initialSector) ? initialSector! : (data.sectors[0]?.id ?? ""),
@@ -89,6 +251,7 @@ export function ActivityLogger({
   const [pending, startTransition] = useTransition();
   const [key, setKey] = useState(() => crypto.randomUUID());
   const router = useRouter();
+  const formConfig = activityForms[type] ?? activityForms.OTHER;
   const estimated = useMemo(() => Math.round(((flow * duration) / 60) * 1000), [flow, duration]);
   function chooseSector(id: string) {
     setSectorId(id);
@@ -115,7 +278,7 @@ export function ActivityLogger({
       quantity: form.get("quantity") ? Number(form.get("quantity")) : undefined,
       unit: String(form.get("unit") || "") || undefined,
       productUsed: String(form.get("productUsed") || "") || undefined,
-      inventoryItemId: inventoryId || undefined,
+      inventoryItemId: formConfig.inventory && inventoryId ? inventoryId : undefined,
       inventoryQuantity: form.get("inventoryQuantity") ? Number(form.get("inventoryQuantity")) : undefined,
       allowNegativeStock: form.get("allowNegativeStock") === "on",
       worker: String(form.get("worker") || "") || undefined,
@@ -137,6 +300,11 @@ export function ActivityLogger({
         router.refresh();
       }
     });
+  }
+  function chooseType(value: string) {
+    setType(value);
+    setInventoryId("");
+    setError("");
   }
   if (saved)
     return (
@@ -166,7 +334,7 @@ export function ActivityLogger({
               <button
                 type="button"
                 key={value}
-                onClick={() => setType(value)}
+                onClick={() => chooseType(value)}
                 className={`flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border text-xs font-semibold ${type === value ? "border-farm-600 bg-farm-50 text-farm-700" : "bg-white text-slate-600"}`}
               >
                 <Icon size={21} />
@@ -177,7 +345,7 @@ export function ActivityLogger({
           <label className="label mt-4">More activity types</label>
           <select
             value={types.some(([, v]) => v === type) ? "" : type}
-            onChange={(e) => e.target.value && setType(e.target.value)}
+            onChange={(e) => e.target.value && chooseType(e.target.value)}
             className="input"
           >
             <option value="">Choose another type…</option>
@@ -201,6 +369,10 @@ export function ActivityLogger({
         )}
         <div className="space-y-5 p-5 md:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-farm-100 bg-farm-50 p-4 sm:col-span-2">
+              <p className="font-semibold text-farm-900">{formConfig.title}</p>
+              <p className="mt-1 text-sm text-farm-700">{formConfig.description}</p>
+            </div>
             <div className="min-w-0">
               <label className="label">Field</label>
               <div className="input flex items-center bg-slate-50">
@@ -276,6 +448,12 @@ export function ActivityLogger({
               <label className="label">Start time</label>
               <input name="startTime" className="input" type="time" defaultValue={data.currentTime} />
             </div>
+            {formConfig.endTime && (
+              <div className="min-w-0">
+                <label className="label">End time (optional)</label>
+                <input name="endTime" className="input" type="time" />
+              </div>
+            )}
             {type === "IRRIGATION" && (
               <>
                 <div>
@@ -335,40 +513,111 @@ export function ActivityLogger({
             )}
             {type !== "IRRIGATION" && (
               <>
-                <div>
-                  <label className="label">Quantity</label>
-                  <input name="quantity" className="input" type="number" min="0" step="0.01" />
-                </div>
-                <div>
-                  <label className="label">Unit</label>
-                  <input name="unit" className="input" placeholder="kg, mm, hours…" />
-                </div>
-                <div>
-                  <label className="label">Product used</label>
-                  <input name="productUsed" className="input" />
-                </div>
-                <div>
-                  <label className="label">Use inventory item (optional)</label>
-                  <select className="input" value={inventoryId} onChange={(e)=>setInventoryId(e.target.value)}>
-                    <option value="">No stock adjustment</option>
-                    {data.inventory.map(item=><option key={item.id} value={item.id}>{item.name} · {item.quantityOnHand} {item.unit}</option>)}
-                  </select>
-                </div>
-                {inventoryId&&<div><label className="label">Inventory quantity used</label><input name="inventoryQuantity" className="input" type="number" min="0.001" step="0.001" required/>{data.role==="ADMIN"&&<label className="mt-2 flex items-center gap-2 text-xs text-slate-500"><input type="checkbox" name="allowNegativeStock"/>Allow negative stock</label>}</div>}
-                <div>
-                  <label className="label">Cost (optional)</label>
-                  <input name="cost" className="input" type="number" min="0" step="0.01" />
-                </div>
+                {formConfig.product && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <label className="label">{formConfig.product.label}</label>
+                    <input
+                      name="productUsed"
+                      className="input"
+                      placeholder={formConfig.product.placeholder}
+                      required={formConfig.product.required}
+                      maxLength={160}
+                    />
+                  </div>
+                )}
+                {formConfig.quantity && (
+                  <div className="min-w-0">
+                    <label className="label">{formConfig.quantity.label}</label>
+                    <input
+                      name="quantity"
+                      className="input"
+                      type="number"
+                      min="0"
+                      step={formConfig.quantity.step ?? "0.01"}
+                      placeholder={formConfig.quantity.placeholder}
+                      required={formConfig.quantity.required}
+                    />
+                  </div>
+                )}
+                {formConfig.quantity && formConfig.units && (
+                  <div className="min-w-0">
+                    <label className="label">{formConfig.unitLabel ?? "Unit"}</label>
+                    <select name="unit" className="input" required={formConfig.quantity.required}>
+                      {!formConfig.quantity.required && <option value="">Choose a unit…</option>}
+                      {formConfig.units.map((unit) => (
+                        <option value={unit} key={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {formConfig.quantity && !formConfig.units && (
+                  <div className="min-w-0">
+                    <label className="label">{formConfig.unitLabel ?? "Unit"}</label>
+                    <input
+                      name="unit"
+                      className="input"
+                      placeholder={formConfig.unitPlaceholder}
+                      required={formConfig.quantity.required}
+                      maxLength={40}
+                    />
+                  </div>
+                )}
+                {formConfig.inventory && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <label className="label">
+                      {type === "EQUIPMENT_MAINTENANCE"
+                        ? "Part or supply from inventory (optional)"
+                        : "Use inventory item (optional)"}
+                    </label>
+                    <select
+                      className="input"
+                      value={inventoryId}
+                      onChange={(event) => setInventoryId(event.target.value)}
+                    >
+                      <option value="">No stock adjustment</option>
+                      {data.inventory.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} · {item.quantityOnHand} {item.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {formConfig.inventory && inventoryId && (
+                  <div className="min-w-0">
+                    <label className="label">Inventory quantity used</label>
+                    <input
+                      name="inventoryQuantity"
+                      className="input"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      required
+                    />
+                    {data.role === "ADMIN" && (
+                      <label className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        <input type="checkbox" name="allowNegativeStock" />
+                        Allow negative stock
+                      </label>
+                    )}
+                  </div>
+                )}
+                {formConfig.cost && (
+                  <div className="min-w-0">
+                    <label className="label">Cost (optional)</label>
+                    <input name="cost" className="input" type="number" min="0" step="0.01" />
+                  </div>
+                )}
               </>
             )}
           </div>
           <input type="hidden" name="worker" value={data.user.name} />
           <div>
-            <label className="label">Notes (optional)</label>
+            <label className="label">{formConfig.notesLabel}</label>
             <textarea
               name="notes"
               className="input min-h-24 py-3"
-              placeholder="Add a field observation…"
+              placeholder={formConfig.notesPlaceholder}
               maxLength={2000}
             />
           </div>

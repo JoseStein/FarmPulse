@@ -98,6 +98,40 @@ export const activitySchema = z.object({
       path: ["plantingCropId"],
       message: "Choose the crop being planted.",
     });
+  const productRequiredFor = new Set([
+    "FERTILIZER_APPLICATION",
+    "PESTICIDE_APPLICATION",
+    "HERBICIDE_APPLICATION",
+    "PEST_INSPECTION",
+    "DISEASE_INSPECTION",
+    "FIELD_OBSERVATION",
+    "WEED_CONTROL",
+    "SOIL_WORK",
+    "EQUIPMENT_MAINTENANCE",
+    "OTHER",
+  ]);
+  if (productRequiredFor.has(data.type) && !data.productUsed)
+    context.addIssue({
+      code: "custom",
+      path: ["productUsed"],
+      message: "Complete the activity-specific description.",
+    });
+  const quantityRequiredFor = new Set([
+    "PLANTING",
+    "FERTILIZER_APPLICATION",
+    "PESTICIDE_APPLICATION",
+    "HERBICIDE_APPLICATION",
+    "RAINFALL_OBSERVATION",
+    "HARVEST",
+  ]);
+  if (quantityRequiredFor.has(data.type) && (!data.quantity || data.quantity <= 0))
+    context.addIssue({
+      code: "custom",
+      path: ["quantity"],
+      message: "Enter an amount greater than zero.",
+    });
+  if (data.quantity != null && !data.unit)
+    context.addIssue({ code: "custom", path: ["unit"], message: "Choose or enter a unit." });
 });
 
 export const expenseSchema = z.object({

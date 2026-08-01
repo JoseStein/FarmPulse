@@ -294,6 +294,12 @@ export async function createActivityAction(
             cropId: plantingCrop.id,
             growthStageId: plantingStageId,
             actualPlantingDate: occurredAt,
+            seedQuantityKg:
+              data.quantity && data.unit === "kg"
+                ? data.quantity
+                : data.quantity && data.unit === "g"
+                  ? data.quantity / 1000
+                  : null,
             ...(data.plantingVariety
               ? { variety: data.plantingVariety }
               : cropChanged
