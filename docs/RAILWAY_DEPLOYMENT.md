@@ -69,7 +69,7 @@ Confirm the seed succeeds, sign in with both accounts, and then remove the two `
 - Review migration SQL before every production deployment.
 - Keep one application replica while using the current in-process weather cache; PostgreSQL data remains safe with additional replicas.
 - Configure Railway usage alerts and sensible resource limits.
-- Do not expose or reuse the local `ChangeMe123!` development password.
+- Use unique seed passwords, share user credentials privately, and remove the temporary `SEED_*` variables after seeding.
 - Rotate `AUTH_SECRET` only with a planned logout window because existing sessions become invalid.
 
 ## Rollback

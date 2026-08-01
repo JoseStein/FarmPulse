@@ -1,6 +1,17 @@
 import { z } from "zod";
 
-export const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
+export const loginSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8) });
+export const farmUserCreateSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(12).max(128),
+  role: z.enum(["ADMIN", "OPERATOR"]),
+});
+export const farmUserAccessSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(["ADMIN", "OPERATOR"]),
+  active: z.boolean(),
+});
 export const idSchema = z.string().uuid();
 export const idempotencySchema = z.string().uuid();
 

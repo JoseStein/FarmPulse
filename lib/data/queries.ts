@@ -34,6 +34,21 @@ export async function getActiveFarm() {
   const { farm } = await requireFarmContext();
   return { ...farm, latitude: decimal(farm.latitude)!, longitude: decimal(farm.longitude)! };
 }
+export async function getFarmUsers() {
+  const context = await requireFarmContext();
+  return prisma.farmMembership.findMany({
+    where: { farmId: context.farm.id },
+    select: {
+      role: true,
+      user: { select: { id: true, name: true, email: true, active: true, createdAt: true } },
+    },
+    orderBy: { user: { name: "asc" } },
+  }).then((memberships) => memberships.map(({ role, user }) => ({
+    ...user,
+    role,
+    createdAt: user.createdAt.toISOString(),
+  })));
+}
 export async function getActiveField() {
   const { field } = await requireActiveField();
   return { ...field, areaHa: decimal(field.areaHa)! };

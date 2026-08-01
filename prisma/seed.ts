@@ -4,10 +4,9 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 const at=(day:number,hour=12,minute=0)=>new Date(Date.UTC(2026,6,day,hour,minute));
 async function main(){
-  const production=process.env.NODE_ENV==="production";
-  const adminPassword=process.env.SEED_ADMIN_PASSWORD||(production?null:"ChangeMe123!");
-  const operatorPassword=process.env.SEED_OPERATOR_PASSWORD||(production?null:"ChangeMe123!");
-  if(!adminPassword||!operatorPassword)throw new Error("Production seeding requires SEED_ADMIN_PASSWORD and SEED_OPERATOR_PASSWORD.");
+  const adminPassword=process.env.SEED_ADMIN_PASSWORD;
+  const operatorPassword=process.env.SEED_OPERATOR_PASSWORD;
+  if(!adminPassword||!operatorPassword)throw new Error("Seeding requires SEED_ADMIN_PASSWORD and SEED_OPERATOR_PASSWORD.");
   if(adminPassword.length<12||operatorPassword.length<12)throw new Error("Seed passwords must contain at least 12 characters.");
   const [adminPasswordHash,operatorPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(operatorPassword,12)]);
   const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN},create:{email:"admin@farmpulse.local",name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN}});

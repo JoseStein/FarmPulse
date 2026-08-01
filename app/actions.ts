@@ -16,6 +16,8 @@ import {
   equipmentSchema,
   expenseSchema,
   farmSettingsSchema,
+  farmUserAccessSchema,
+  farmUserCreateSchema,
   fieldNoteSchema,
   inventoryItemSchema,
   issueStatusSchema,
@@ -27,6 +29,7 @@ import {
 import { Prisma, type ActivityType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 export type ActionResult<T = undefined> =
   { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string[]> };
@@ -776,6 +779,73 @@ export async function updateFarmSettingsAction(input: unknown): Promise<ActionRe
     revalidatePath("/dashboard");
     revalidatePath("/map");
     return { ok: true, data: { id: farm.id } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function createFarmUserAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const data = farmUserCreateSchema.parse(input);
+    const context = await requireFarmContext();
+    requireRole(context.role, ["ADMIN"]);
+    const existing = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
+    if (existing) throw new SafeActionError("VALIDATION", "A user with this email address already exists.");
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: { name: data.name, email: data.email, passwordHash, role: data.role },
+      });
+      await tx.farmMembership.create({
+        data: { farmId: context.farm.id, userId: created.id, role: data.role },
+      });
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: context.user.id,
+          action: "USER_CREATE",
+          entityType: "User",
+          entityId: created.id,
+          metadata: { email: created.email, role: data.role },
+        },
+      });
+      return created;
+    });
+    revalidatePath("/settings");
+    return { ok: true, data: { id: user.id } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function updateFarmUserAccessAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const data = farmUserAccessSchema.parse(input);
+    const context = await requireFarmContext();
+    requireRole(context.role, ["ADMIN"]);
+    if (data.userId === context.user.id)
+      throw new SafeActionError("VALIDATION", "You cannot change your own role or deactivate your own account.");
+    const membership = await prisma.farmMembership.findUnique({
+      where: { farmId_userId: { farmId: context.farm.id, userId: data.userId } },
+      include: { user: { select: { email: true } } },
+    });
+    if (!membership) throw new SafeActionError("NOT_FOUND", "Farm user not found.");
+    await prisma.$transaction(async (tx) => {
+      await tx.farmMembership.update({ where: { id: membership.id }, data: { role: data.role } });
+      await tx.user.update({ where: { id: data.userId }, data: { role: data.role, active: data.active } });
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: context.user.id,
+          action: "USER_ACCESS_UPDATE",
+          entityType: "User",
+          entityId: data.userId,
+          metadata: { email: membership.user.email, role: data.role, active: data.active },
+        },
+      });
+    });
+    revalidatePath("/settings");
+    return { ok: true, data: { id: data.userId } };
   } catch (error) {
     return failure(error);
   }

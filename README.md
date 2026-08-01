@@ -66,20 +66,15 @@ Never commit `.env` files or live credentials.
 
 ```bash
 npx prisma migrate deploy  # apply checked-in migrations
+SEED_ADMIN_PASSWORD='a-unique-12+-character-password' \
+SEED_OPERATOR_PASSWORD='another-unique-12+-character-password' \
 npm run db:seed            # idempotent pilot seed
 npx prisma studio          # optional local data browser
 ```
 
 The seed contains one Panama farm, Field 1, four sectors (33/33/34/33 drip lines), an active corn cycle, growth stages, tasks, irrigation, budget/expenses, inventory, equipment, guide content, a field note, an open issue, a weather snapshot, and the full irrigation-design reference.
 
-### Development credentials
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Administrator | `admin@farmpulse.local` | `ChangeMe123!` |
-| Field operator | `operator@farmpulse.local` | `ChangeMe123!` |
-
-These accounts are only for development. Before live use, replace both passwords in the database or seed source, run the seed, and use a unique secret. Do not expose the development panel in a public deployment.
+The seed passwords are supplied only through environment variables and are never displayed by the application. After the initial administrator signs in, real user accounts can be created under **Settings → Users and access**.
 
 ## Testing and quality
 
