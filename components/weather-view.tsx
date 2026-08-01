@@ -14,11 +14,11 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
   const temp=(c:number|null)=>c==null?"—":`${Math.round(us?c*9/5+32:c)}°${us?"F":"C"}`;
   const rain=(mm:number|null)=>mm==null?"—":`${(us?millimetersToInches(mm):mm).toFixed(us?2:1)} ${us?"in":"mm"}`;
   const wind=(kph:number|null)=>kph==null?"—":`${Math.round(us?kph*0.621371:kph)} ${us?"mph":"km/h"}`;
-  async function load() {
+  async function load(forceRefresh=false) {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/weather", { cache: "no-store" });
+      const response = await fetch(forceRefresh?"/api/weather?refresh=1":"/api/weather", { cache: "no-store" });
       if (!response.ok) throw new Error("Weather request failed");
       setData(await response.json());
     } catch {
@@ -30,6 +30,8 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    const interval=window.setInterval(()=>void load(true),10*60*1000);
+    return ()=>window.clearInterval(interval);
   }, []);
   if (loading && !data)
     return (
@@ -45,7 +47,7 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
       <div className="card p-8 text-center">
         <AlertTriangle className="mx-auto text-amber-600" />
         <p className="mt-3 font-semibold">{error}</p>
-        <button onClick={load} className="btn-secondary mt-4">
+        <button onClick={()=>load(true)} className="btn-secondary mt-4">
           <RefreshCw size={16} />
           Try again
         </button>
@@ -62,12 +64,17 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
       <section className="card overflow-hidden">
         <div className="grid gap-5 bg-[#eaf5f7] p-6 sm:grid-cols-[1fr_auto]">
           <div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Status tone={data.source === "live" ? "green" : "amber"}>
                 {data.source.replace("-", " ")}
               </Status>
               {data.stale && <Status tone="amber">Stale</Status>}
+              <button disabled={loading} onClick={()=>load(true)} className="btn-secondary !min-h-8 !px-3">
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                Refresh live
+              </button>
             </div>
+            {data.location&&<p className="mt-3 text-sm font-semibold text-slate-700">{data.location.name} · {data.location.latitude.toFixed(5)}, {data.location.longitude.toFixed(5)}</p>}
             <p className="mt-4 text-5xl font-bold">
               {temp(data.current.temperatureC)}
             </p>
@@ -75,13 +82,14 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
               Feels like {temp(data.current.apparentTemperatureC)}
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              Updated{" "}
+              Provider observation{" "}
               {new Intl.DateTimeFormat("en-US", {
                 timeZone: timezone,
                 dateStyle: "medium",
                 timeStyle: "short",
               }).format(new Date(data.updatedAt))}
             </p>
+            <p className="mt-1 text-xs text-slate-500">Automatically checks for new conditions every 10 minutes.</p>
           </div>
           <Sun className="size-24 text-amber-500" />
         </div>
@@ -107,7 +115,7 @@ export function WeatherView({ timezone,unitSystem }: { timezone: string;unitSyst
         <section className="card mt-5 p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-bold">Seven-day forecast</h2>
-            <button disabled={loading} onClick={load} className="btn-secondary !min-h-9">
+            <button disabled={loading} onClick={()=>load(true)} className="btn-secondary !min-h-9">
               <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
               Refresh
             </button>

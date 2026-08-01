@@ -22,6 +22,7 @@ export async function requireFarmContext() {
         select: {
           id: true,
           name: true,
+          locationName: true,
           country: true,
           timezone: true,
           currency: true,
@@ -69,4 +70,3 @@ export async function verifySector(fieldId: string, sectorId?: string | null) {
 export function requireRole(role: Role, allowed: Role[]) {
   if (!allowed.includes(role)) throw new SafeActionError("FORBIDDEN", "You do not have permission to perform this action.");
 }
-

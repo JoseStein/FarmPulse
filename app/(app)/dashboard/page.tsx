@@ -19,6 +19,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { hectaresToAcres, litersToGallons, money } from "@/lib/utils";
+import { getFarmWeather } from "@/lib/weather";
 
 export const metadata = { title: "Today" };
 const quick = [
@@ -33,6 +34,7 @@ const quick = [
 ] as const;
 
 export default async function Dashboard() {
+  await getFarmWeather();
   const [data, sectors] = await Promise.all([getDashboardSummary(), getSectorSummaries()]);
   const recommendation =
     sectors.sectors.find((s) => s.recommendation.type !== "MONITOR") ?? sectors.sectors[0];

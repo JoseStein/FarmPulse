@@ -175,6 +175,7 @@ export const cropCycleSchema = z.object({
 });
 export const farmSettingsSchema = z.object({
   name: z.string().trim().min(2).max(160),
+  locationName: z.string().trim().min(2).max(160),
   country: z.string().trim().min(2).max(100),
   timezone: z.string().trim().min(2).max(100),
   currency: z.string().trim().length(3),
