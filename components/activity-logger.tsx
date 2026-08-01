@@ -8,7 +8,6 @@ import {
   Bug,
   NotebookPen,
   Camera,
-  Clock,
   Loader2,
   Sprout,
   Tractor,
@@ -30,7 +29,8 @@ type ActivityRow = {
 };
 type Data = {
   field: { id: string; name: string };
-  cycle: { id: string; crop: string };
+  cycle: { id: string; cropId: string; crop: string };
+  crops: Array<{ id: string; name: string }>;
   user: { id: string; name: string; email: string; active: boolean };
   role: "ADMIN" | "OPERATOR";
   timezone: string;
@@ -82,6 +82,7 @@ export function ActivityLogger({
   );
   const [duration, setDuration] = useState(60);
   const [inventoryId, setInventoryId] = useState("");
+  const [plantingCrop, setPlantingCrop] = useState(data.cycle.cropId);
   const [flow, setFlow] = useState(data.sectors.find((s) => s.id === sectorId)?.flowM3h ?? 11);
   const [saved, setSaved] = useState<{ liters: number | null } | null>(null);
   const [error, setError] = useState("");
@@ -101,6 +102,13 @@ export function ActivityLogger({
       type,
       sectorId: type === "IRRIGATION" ? sectorId : String(form.get("sectorId") || "") || undefined,
       cropCycleId: data.cycle.id,
+      plantingCropId: type === "PLANTING" && plantingCrop !== "new" ? plantingCrop : undefined,
+      plantingCropName:
+        type === "PLANTING" && plantingCrop === "new"
+          ? String(form.get("plantingCropName") || "") || undefined
+          : undefined,
+      plantingVariety:
+        type === "PLANTING" ? String(form.get("plantingVariety") || "") || undefined : undefined,
       date: String(form.get("date")),
       startTime: String(form.get("startTime") || "") || undefined,
       endTime: String(form.get("endTime") || "") || undefined,
@@ -193,13 +201,13 @@ export function ActivityLogger({
         )}
         <div className="space-y-5 p-5 md:p-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+            <div className="min-w-0">
               <label className="label">Field</label>
               <div className="input flex items-center bg-slate-50">
-                {data.field.name} · {data.cycle.crop}
+                {data.field.name}
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="label">Sector</label>
               <select
                 name="sectorId"
@@ -215,16 +223,58 @@ export function ActivityLogger({
                 ))}
               </select>
             </div>
-            <div>
+            {type === "PLANTING" && (
+              <>
+                <div className="min-w-0 sm:col-span-2">
+                  <label className="label">Crop being planted</label>
+                  <select
+                    className="input"
+                    value={plantingCrop}
+                    onChange={(event) => setPlantingCrop(event.target.value)}
+                    required
+                  >
+                    {data.crops.map((crop) => (
+                      <option value={crop.id} key={crop.id}>
+                        {crop.name}{crop.id === data.cycle.cropId ? " (currently planned)" : ""}
+                      </option>
+                    ))}
+                    <option value="new">Add another crop…</option>
+                  </select>
+                </div>
+                {plantingCrop === "new" && (
+                  <div className="min-w-0 sm:col-span-2">
+                    <label className="label">New crop name</label>
+                    <input
+                      name="plantingCropName"
+                      className="input"
+                      placeholder="For example: tomato, plantain, watermelon"
+                      minLength={2}
+                      maxLength={120}
+                      required
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 sm:col-span-2">
+                  <label className="label">Variety (optional)</label>
+                  <input
+                    name="plantingVariety"
+                    className="input"
+                    placeholder="Cultivar or variety name"
+                    maxLength={120}
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Saving this planting makes the selected crop the active crop for {data.field.name}.
+                  </p>
+                </div>
+              </>
+            )}
+            <div className="min-w-0">
               <label className="label">Date</label>
               <input name="date" className="input" type="date" defaultValue={data.today} required />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="label">Start time</label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-3.5 text-slate-400" size={16} />
-                <input name="startTime" className="input pl-9" type="time" defaultValue={data.currentTime} />
-              </div>
+              <input name="startTime" className="input" type="time" defaultValue={data.currentTime} />
             </div>
             {type === "IRRIGATION" && (
               <>

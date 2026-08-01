@@ -204,7 +204,7 @@ export async function getActivities(limit = 30, sectorId?: string) {
 
 export async function getActivityPageData() {
   const context = await requireActiveCycle();
-  const [sectors, activities, design, inventory] = await Promise.all([
+  const [sectors, activities, design, inventory, crops] = await Promise.all([
     prisma.sector.findMany({
       where: { fieldId: context.field.id },
       select: { id: true, name: true },
@@ -219,11 +219,16 @@ export async function getActivityPageData() {
       select: { id: true, name: true, quantityOnHand: true, unit: true },
       orderBy: { name: "asc" },
     }),
+    prisma.crop.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   const flowM3h = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h ?? 11);
   return {
     field: { id: context.field.id, name: context.field.name },
-    cycle: { id: context.cycle.id, crop: context.cycle.crop.name },
+    cycle: { id: context.cycle.id, cropId: context.cycle.crop.id, crop: context.cycle.crop.name },
+    crops,
     user: context.user,
     role: context.role,
     timezone: context.farm.timezone,

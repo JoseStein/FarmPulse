@@ -63,6 +63,9 @@ export const activitySchema = z.object({
   ]),
   sectorId: idSchema.optional().or(z.literal("")),
   cropCycleId: idSchema.optional(),
+  plantingCropId: idSchema.optional().or(z.literal("")),
+  plantingCropName: z.string().trim().min(2).max(120).optional().or(z.literal("")),
+  plantingVariety: z.string().trim().max(120).optional().or(z.literal("")),
   date: z.string().date(),
   startTime: z
     .string()
@@ -88,6 +91,13 @@ export const activitySchema = z.object({
   pressureBar: z.coerce.number().nonnegative().max(50).optional(),
   taskId: idSchema.optional(),
   idempotencyKey: idempotencySchema,
+}).superRefine((data, context) => {
+  if (data.type === "PLANTING" && !data.plantingCropId && !data.plantingCropName)
+    context.addIssue({
+      code: "custom",
+      path: ["plantingCropId"],
+      message: "Choose the crop being planted.",
+    });
 });
 
 export const expenseSchema = z.object({

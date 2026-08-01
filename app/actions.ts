@@ -183,6 +183,8 @@ export async function createActivityAction(
   try {
     const data = activitySchema.parse(input);
     const context = await requireActiveCycle();
+    if (data.cropCycleId && data.cropCycleId !== context.cycle.id)
+      throw new SafeActionError("VALIDATION", "The selected crop cycle is no longer active.");
     const sector = await verifySector(context.field.id, data.sectorId || null);
     if (data.type === "IRRIGATION" && !sector)
       throw new SafeActionError("VALIDATION", "Choose a sector for irrigation.");
@@ -234,11 +236,87 @@ export async function createActivityAction(
         `Only ${inventoryItem.quantityOnHand.toString()} ${inventoryItem.unit} is available.`,
       );
     const result = await prisma.$transaction(async (tx) => {
+      let plantingCrop: { id: string; name: string } | null = null;
+      let plantingStageId: string | null = null;
+      if (data.type === "PLANTING") {
+        if (data.plantingCropId) {
+          plantingCrop = await tx.crop.findUnique({
+            where: { id: data.plantingCropId },
+            select: { id: true, name: true },
+          });
+          if (!plantingCrop) throw new SafeActionError("NOT_FOUND", "The selected crop was not found.");
+        } else if (data.plantingCropName) {
+          plantingCrop = await tx.crop.findFirst({
+            where: { name: { equals: data.plantingCropName, mode: "insensitive" } },
+            select: { id: true, name: true },
+          });
+          if (!plantingCrop) {
+            plantingCrop = await tx.crop.create({
+              data: { name: data.plantingCropName },
+              select: { id: true, name: true },
+            });
+            const universalStages = [
+              "Planning",
+              "Land preparation",
+              "Planting",
+              "Establishment",
+              "Growth",
+              "Harvest",
+              "Completed",
+            ];
+            await tx.growthStage.createMany({
+              data: universalStages.map((name, order) => ({ cropId: plantingCrop!.id, name, order })),
+            });
+          }
+        }
+        if (!plantingCrop)
+          throw new SafeActionError("VALIDATION", "Choose the crop being planted.");
+        let plantingStage = await tx.growthStage.findFirst({
+          where: { cropId: plantingCrop.id, name: "Planting" },
+          select: { id: true },
+        });
+        if (!plantingStage) {
+          const lastStage = await tx.growthStage.findFirst({
+            where: { cropId: plantingCrop.id },
+            orderBy: { order: "desc" },
+            select: { order: true },
+          });
+          plantingStage = await tx.growthStage.create({
+            data: { cropId: plantingCrop.id, name: "Planting", order: (lastStage?.order ?? -1) + 1 },
+            select: { id: true },
+          });
+        }
+        plantingStageId = plantingStage.id;
+        const cropChanged = plantingCrop.id !== context.cycle.cropId;
+        await tx.cropCycle.update({
+          where: { id: context.cycle.id },
+          data: {
+            cropId: plantingCrop.id,
+            growthStageId: plantingStageId,
+            actualPlantingDate: occurredAt,
+            ...(data.plantingVariety
+              ? { variety: data.plantingVariety }
+              : cropChanged
+                ? { variety: null }
+                : {}),
+            ...(cropChanged
+              ? {
+                  expectedHarvestDate: null,
+                  actualHarvestDate: null,
+                  seedQuantityKg: null,
+                  populationTarget: null,
+                  expectedYieldKg: null,
+                  actualYieldKg: null,
+                }
+              : {}),
+          },
+        });
+      }
       const activity = await tx.activity.create({
         data: {
           fieldId: context.field.id,
           sectorId: sector?.id,
-          cropCycleId: data.cropCycleId ?? context.cycle.id,
+          cropCycleId: context.cycle.id,
           createdById: context.user.id,
           type: data.type,
           occurredAt,
@@ -309,7 +387,18 @@ export async function createActivityAction(
           action: "CREATE",
           entityType: "Activity",
           entityId: activity.id,
-          metadata: { type: data.type, irrigationEventId },
+          metadata: {
+            type: data.type,
+            irrigationEventId,
+            ...(plantingCrop
+              ? {
+                  fromCropId: context.cycle.cropId,
+                  plantedCropId: plantingCrop.id,
+                  plantedCropName: plantingCrop.name,
+                  plantingStageId,
+                }
+              : {}),
+          },
         },
       });
       return { id: activity.id, irrigationEventId };
