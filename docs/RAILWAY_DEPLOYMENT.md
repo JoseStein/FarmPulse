@@ -48,7 +48,7 @@ After the first successful deployment, run the seed once inside the deployed app
 railway ssh -- npm run db:seed
 ```
 
-When `SEED_ADMIN_PASSWORD` is present, the next deployment automatically runs the idempotent pilot seed after migrations. `SEED_OPERATOR_PASSWORD` is optional; omit it to keep the sample operator inactive. Seed passwords are applied only when the corresponding account is first created, so later deployments cannot overwrite a password changed by a user. Confirm the seed succeeds, sign in, and then remove the temporary seed password variables.
+When `SEED_ADMIN_PASSWORD` is present and no active administrator exists, deployment automatically runs the idempotent pilot seed after migrations. Once initialized, later deployments skip seeding, so removed users stay removed and user-chosen passwords remain unchanged. `SEED_OPERATOR_PASSWORD` is optional; omit it to keep the sample operator inactive. Confirm the initial seed succeeds, sign in, and then remove the temporary seed password variables.
 
 ## 4. Verify the deployment
 

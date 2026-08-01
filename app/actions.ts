@@ -18,6 +18,7 @@ import {
   farmSettingsSchema,
   farmUserAccessSchema,
   farmUserCreateSchema,
+  farmUserRemoveSchema,
   fieldNoteSchema,
   inventoryItemSchema,
   issueStatusSchema,
@@ -790,13 +791,24 @@ export async function createFarmUserAction(input: unknown): Promise<ActionResult
     const data = farmUserCreateSchema.parse(input);
     const context = await requireFarmContext();
     requireRole(context.role, ["ADMIN"]);
-    const existing = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
-    if (existing) throw new SafeActionError("VALIDATION", "A user with this email address already exists.");
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
+      select: { id: true, active: true, memberships: { where: { farmId: context.farm.id }, select: { id: true } } },
+    });
+    if (existing?.memberships.length)
+      throw new SafeActionError("VALIDATION", "A user with this email address already belongs to the farm.");
+    if (existing?.active)
+      throw new SafeActionError("VALIDATION", "This email address belongs to another active account.");
     const passwordHash = await bcrypt.hash(data.password, 12);
     const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: { name: data.name, email: data.email, passwordHash, role: data.role },
-      });
+      const created = existing
+        ? await tx.user.update({
+            where: { id: existing.id },
+            data: { name: data.name, passwordHash, role: data.role, active: true },
+          })
+        : await tx.user.create({
+            data: { name: data.name, email: data.email, passwordHash, role: data.role },
+          });
       await tx.farmMembership.create({
         data: { farmId: context.farm.id, userId: created.id, role: data.role },
       });
@@ -804,7 +816,7 @@ export async function createFarmUserAction(input: unknown): Promise<ActionResult
         data: {
           farmId: context.farm.id,
           userId: context.user.id,
-          action: "USER_CREATE",
+          action: existing ? "USER_RESTORE" : "USER_CREATE",
           entityType: "User",
           entityId: created.id,
           metadata: { email: created.email, role: data.role },
@@ -814,6 +826,40 @@ export async function createFarmUserAction(input: unknown): Promise<ActionResult
     });
     revalidatePath("/settings");
     return { ok: true, data: { id: user.id } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function removeInactiveFarmUserAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const data = farmUserRemoveSchema.parse(input);
+    const context = await requireFarmContext();
+    requireRole(context.role, ["ADMIN"]);
+    if (data.userId === context.user.id)
+      throw new SafeActionError("VALIDATION", "You cannot remove your own account.");
+    const membership = await prisma.farmMembership.findUnique({
+      where: { farmId_userId: { farmId: context.farm.id, userId: data.userId } },
+      include: { user: { select: { email: true, active: true } } },
+    });
+    if (!membership) throw new SafeActionError("NOT_FOUND", "Farm user not found.");
+    if (membership.user.active)
+      throw new SafeActionError("VALIDATION", "Deactivate this user before removing them.");
+    await prisma.$transaction(async (tx) => {
+      await tx.farmMembership.delete({ where: { id: membership.id } });
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: context.user.id,
+          action: "USER_REMOVE",
+          entityType: "User",
+          entityId: data.userId,
+          metadata: { email: membership.user.email },
+        },
+      });
+    });
+    revalidatePath("/settings");
+    return { ok: true, data: { id: data.userId } };
   } catch (error) {
     return failure(error);
   }

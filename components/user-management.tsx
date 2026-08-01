@@ -2,8 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, UserPlus, Users } from "lucide-react";
-import { createFarmUserAction, updateFarmUserAccessAction } from "@/app/actions";
+import { Eye, EyeOff, Loader2, Trash2, UserPlus, Users } from "lucide-react";
+import { createFarmUserAction, removeInactiveFarmUserAction, updateFarmUserAccessAction } from "@/app/actions";
 import { Status } from "@/components/ui";
 
 type Member = {
@@ -49,6 +49,18 @@ export function UserManagement({ members, currentUserId }: { members: Member[]; 
     });
   }
 
+  function removeUser(member: Member) {
+    if (!window.confirm(`Remove ${member.name} from this farm? Their historical work will be preserved.`)) return;
+    setMessage(null);
+    startTransition(async () => {
+      const result = await removeInactiveFarmUserAction({ userId: member.id });
+      setMessage(result.ok
+        ? { ok: true, text: "Inactive user removed. Historical records were preserved." }
+        : { ok: false, text: result.error });
+      if (result.ok) router.refresh();
+    });
+  }
+
   return <section className="card mt-4 p-5">
     <div className="flex items-start gap-3">
       <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-farm-50 text-farm-700"><Users size={20}/></span>
@@ -80,6 +92,7 @@ export function UserManagement({ members, currentUserId }: { members: Member[]; 
         <div className="flex flex-wrap items-center gap-2">
           <select aria-label={`Role for ${member.name}`} className="input h-10 w-auto py-1" value={member.role} disabled={pending||member.id===currentUserId} onChange={event=>updateAccess(member,{role:event.target.value as Member["role"]})}><option value="OPERATOR">Operator</option><option value="ADMIN">Administrator</option></select>
           {member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>updateAccess(member,{active:!member.active})} className={member.active?"btn-secondary h-10":"btn-primary h-10"}>{member.active?"Deactivate":"Activate"}</button>}
+          {!member.active&&member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>removeUser(member)} className="flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 size={16}/>Remove</button>}
         </div>
       </div>)}
     </div>

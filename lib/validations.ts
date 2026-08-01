@@ -12,6 +12,7 @@ export const farmUserAccessSchema = z.object({
   role: z.enum(["ADMIN", "OPERATOR"]),
   active: z.boolean(),
 });
+export const farmUserRemoveSchema = z.object({ userId: z.string().uuid() });
 export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(8).max(128),
   newPassword: z.string().min(12).max(128),
