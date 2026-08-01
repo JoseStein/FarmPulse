@@ -120,18 +120,19 @@ Known pilot limitations: one active field/cycle is selected automatically, histo
 
 ## Railway deployment
 
-1. Create a Railway project and PostgreSQL service.
-2. Deploy this repository; `railway.toml` selects the Dockerfile.
-3. Set `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `WEATHER_PROVIDER`, and storage variables.
-4. The deploy command applies migrations before starting Next.js.
-5. Run `npm run db:seed` once from a Railway shell for a pilot environment.
-6. Confirm `/api/health`, sign-in, and the protected weather endpoint.
+The complete step-by-step setup and verification procedure is in [`docs/RAILWAY_DEPLOYMENT.md`](docs/RAILWAY_DEPLOYMENT.md).
+
+1. Create a Railway project with PostgreSQL and this GitHub repository.
+2. Set `DATABASE_URL=${{Postgres.DATABASE_URL}}`, a generated `AUTH_SECRET`, the HTTPS `AUTH_URL`, and S3-compatible storage variables.
+3. Railway uses the Dockerfile and runs `npx prisma migrate deploy` as a pre-deploy command.
+4. Seed a new database once with unique `SEED_ADMIN_PASSWORD` and `SEED_OPERATOR_PASSWORD` values; never seed production with the local passwords.
+5. Confirm `/api/health` reports a connected database, then verify both roles, logout, persistence, weather, uploads, and exports.
 
 The Docker image runs as a non-root user. For an internet-facing deployment, change the seeded passwords first and connect persistent object storage.
 
 ### Production checklist
 
-- Generate a unique `AUTH_SECRET`; replace both seed passwords and restrict seed execution.
+- Generate a unique `AUTH_SECRET`; set unique one-time production seed passwords and restrict seed execution.
 - Use managed PostgreSQL with automated backups, retention, connection limits, and a tested restore.
 - Configure private S3-compatible storage, least-privilege credentials, encryption, retention, and CORS if required.
 - Apply `npx prisma migrate deploy` before startup and review migration backups before each release.

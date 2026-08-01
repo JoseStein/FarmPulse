@@ -4,9 +4,14 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 const at=(day:number,hour=12,minute=0)=>new Date(Date.UTC(2026,6,day,hour,minute));
 async function main(){
-  const passwordHash=await bcrypt.hash("ChangeMe123!",12);
-  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Wilkes Ladera",passwordHash,role:Role.ADMIN},create:{email:"admin@farmpulse.local",name:"Wilkes Ladera",passwordHash,role:Role.ADMIN}});
-  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:{passwordHash,role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash,role:Role.OPERATOR}});
+  const production=process.env.NODE_ENV==="production";
+  const adminPassword=process.env.SEED_ADMIN_PASSWORD||(production?null:"ChangeMe123!");
+  const operatorPassword=process.env.SEED_OPERATOR_PASSWORD||(production?null:"ChangeMe123!");
+  if(!adminPassword||!operatorPassword)throw new Error("Production seeding requires SEED_ADMIN_PASSWORD and SEED_OPERATOR_PASSWORD.");
+  if(adminPassword.length<12||operatorPassword.length<12)throw new Error("Seed passwords must contain at least 12 characters.");
+  const [adminPasswordHash,operatorPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(operatorPassword,12)]);
+  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN},create:{email:"admin@farmpulse.local",name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN}});
+  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:{passwordHash:operatorPasswordHash,role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash:operatorPasswordHash,role:Role.OPERATOR}});
   let farm=await prisma.farm.findFirst({where:{name:"FarmPulse Panama Pilot"}});
   if(!farm)farm=await prisma.farm.create({data:{name:"FarmPulse Panama Pilot",country:"Panama",timezone:"America/Panama",currency:"USD",unitSystem:"METRIC",latitude:8.43,longitude:-82.43}});
   for(const [user,role] of [[admin,Role.ADMIN],[operator,Role.OPERATOR]] as const)await prisma.farmMembership.upsert({where:{farmId_userId:{farmId:farm.id,userId:user.id}},update:{role},create:{farmId:farm.id,userId:user.id,role}});
