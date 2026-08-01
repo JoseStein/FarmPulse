@@ -12,6 +12,16 @@ export const farmUserAccessSchema = z.object({
   role: z.enum(["ADMIN", "OPERATOR"]),
   active: z.boolean(),
 });
+export const passwordChangeSchema = z.object({
+  currentPassword: z.string().min(8).max(128),
+  newPassword: z.string().min(12).max(128),
+  confirmPassword: z.string().min(12).max(128),
+}).superRefine((data, context) => {
+  if (data.newPassword !== data.confirmPassword)
+    context.addIssue({ code: "custom", path: ["confirmPassword"], message: "Passwords do not match." });
+  if (data.newPassword === data.currentPassword)
+    context.addIssue({ code: "custom", path: ["newPassword"], message: "Choose a password you have not already used." });
+});
 export const idSchema = z.string().uuid();
 export const idempotencySchema = z.string().uuid();
 

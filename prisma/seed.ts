@@ -10,8 +10,8 @@ async function main(){
   if(!adminPassword)throw new Error("Seeding requires SEED_ADMIN_PASSWORD.");
   if(adminPassword.length<12||(operatorPassword&&operatorPassword.length<12))throw new Error("Seed passwords must contain at least 12 characters.");
   const [adminPasswordHash,operatorPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(operatorPassword??randomBytes(32).toString("base64url"),12)]);
-  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Admin",passwordHash:adminPasswordHash,role:Role.ADMIN,active:true},create:{email:"admin@farmpulse.local",name:"Admin",passwordHash:adminPasswordHash,role:Role.ADMIN}});
-  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:operatorPassword?{passwordHash:operatorPasswordHash,role:Role.OPERATOR,active:true}:{role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash:operatorPasswordHash,role:Role.OPERATOR,active:Boolean(operatorPassword)}});
+  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Admin",role:Role.ADMIN,active:true},create:{email:"admin@farmpulse.local",name:"Admin",passwordHash:adminPasswordHash,role:Role.ADMIN}});
+  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:operatorPassword?{role:Role.OPERATOR,active:true}:{role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash:operatorPasswordHash,role:Role.OPERATOR,active:Boolean(operatorPassword)}});
   let farm=await prisma.farm.findFirst({where:{name:"FarmPulse Panama Pilot"}});
   if(!farm)farm=await prisma.farm.create({data:{name:"FarmPulse Panama Pilot",country:"Panama",timezone:"America/Panama",currency:"USD",unitSystem:"METRIC",latitude:8.43,longitude:-82.43}});
   for(const [user,role] of [[admin,Role.ADMIN],[operator,Role.OPERATOR]] as const)await prisma.farmMembership.upsert({where:{farmId_userId:{farmId:farm.id,userId:user.id}},update:{role},create:{farmId:farm.id,userId:user.id,role}});

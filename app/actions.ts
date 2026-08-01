@@ -21,6 +21,7 @@ import {
   fieldNoteSchema,
   inventoryItemSchema,
   issueStatusSchema,
+  passwordChangeSchema,
   maintenanceSchema,
   stockAdjustmentSchema,
   taskCreateSchema,
@@ -846,6 +847,35 @@ export async function updateFarmUserAccessAction(input: unknown): Promise<Action
     });
     revalidatePath("/settings");
     return { ok: true, data: { id: data.userId } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function changeOwnPasswordAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const data = passwordChangeSchema.parse(input);
+    const context = await requireFarmContext();
+    const user = await prisma.user.findUnique({
+      where: { id: context.user.id },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user || !(await bcrypt.compare(data.currentPassword, user.passwordHash)))
+      throw new SafeActionError("VALIDATION", "Your current password is incorrect.");
+    const passwordHash = await bcrypt.hash(data.newPassword, 12);
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: user.id,
+          action: "PASSWORD_CHANGE",
+          entityType: "User",
+          entityId: user.id,
+        },
+      });
+    });
+    return { ok: true, data: { id: user.id } };
   } catch (error) {
     return failure(error);
   }
