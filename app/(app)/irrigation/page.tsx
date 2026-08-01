@@ -22,11 +22,11 @@ export default async function IrrigationPage() {
         eyebrow="Water management"
         title="Irrigation"
         description={`${data.sectors.length} sectors · design flow ${usUnits?`${cubicMetersHourToGpm(flow).toFixed(1)} gpm`:`${flow} m³/h`} per sector · target pressure ${usUnits?target.map(x=>barToPsi(Number(x)).toFixed(1)).join("–")+" psi":target.join("–")+" bar"}`}
-        action={
+        action={data.cycle.planted ?
           <Link href="/activities?type=irrigation" className="btn-primary">
             <Plus size={17} />
             Log irrigation
-          </Link>
+          </Link> : <span className="btn-secondary cursor-not-allowed opacity-60">Available after planting</span>
         }
       />
       {priority && (
@@ -132,9 +132,7 @@ export default async function IrrigationPage() {
                 <dd className="font-semibold">{s.openIrrigationIssues}</dd>
               </div>
             </dl>
-            <Link href={`/activities?type=irrigation&sector=${s.id}`} className="btn-secondary mt-5 w-full">
-              Log now
-            </Link>
+            {data.cycle.planted ? <Link href={`/activities?type=irrigation&sector=${s.id}`} className="btn-secondary mt-5 w-full">Log now</Link> : <span className="btn-secondary mt-5 w-full cursor-not-allowed opacity-60">Not planted yet</span>}
           </article>
         ))}
       </div>

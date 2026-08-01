@@ -1,9 +1,326 @@
 "use client";
-import {adjustStockAction,saveInventoryItemAction} from "@/app/actions";
-import {money} from "@/lib/utils";
-import {AlertTriangle,ChevronRight,Loader2,Package,Plus,Search,X} from "lucide-react";
-import {useRouter} from "next/navigation";
-import {useMemo,useState,useTransition} from "react";
-import {Status} from "./ui";
-type Tx={id:string;quantity:number;type:string;reason:string|null;createdAt:string};type Item={id:string;name:string;category:string;quantityOnHand:number;unit:string;minimumThreshold:number;unitCost:number|null;supplier:string|null;storageLocation:string|null;expirationDate:string|null;notes:string|null;transactions:Tx[]};
-export function InventoryView({data}:{data:{role:"ADMIN"|"OPERATOR";items:Item[];estimatedValue:number;lowStockCount:number}}){const [search,setSearch]=useState(""),[lowOnly,setLowOnly]=useState(false),[edit,setEdit]=useState<Item|"new"|null>(null),[adjust,setAdjust]=useState<Item|null>(null),[message,setMessage]=useState(""),[pending,startTransition]=useTransition();const router=useRouter();const items=useMemo(()=>data.items.filter(i=>(!search||`${i.name} ${i.category}`.toLowerCase().includes(search.toLowerCase()))&&(!lowOnly||i.quantityOnHand<=i.minimumThreshold)),[data.items,search,lowOnly]);function save(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);startTransition(async()=>{const result=await saveInventoryItemAction({...Object.fromEntries(f),id:edit!=="new"?edit?.id:undefined,quantityOnHand:Number(f.get("quantityOnHand")),minimumThreshold:Number(f.get("minimumThreshold")),unitCost:f.get("unitCost")?Number(f.get("unitCost")):undefined});if(!result.ok)setMessage(result.error);else{setMessage("Inventory item saved.");setEdit(null);router.refresh()}})}function change(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);startTransition(async()=>{const result=await adjustStockAction({itemId:adjust!.id,quantity:Number(f.get("quantity")),reason:String(f.get("reason"))});setMessage(result.ok?"Stock adjustment saved.":result.error);if(result.ok){setAdjust(null);router.refresh()}})}return <>{message&&<p role="status" className="mb-4 rounded-xl bg-farm-50 p-3 text-sm font-semibold text-farm-700">{message}</p>}<div className="mb-5 grid gap-3 sm:grid-cols-3"><div className="card p-5"><p className="text-xs text-slate-500">Estimated value</p><p className="mt-2 text-2xl font-bold">{money(data.estimatedValue)}</p><p className="text-xs text-slate-400">Quantity × recorded unit cost</p></div><div className="card p-5"><p className="text-xs text-slate-500">Low-stock items</p><p className="mt-2 text-2xl font-bold">{data.lowStockCount}</p><p className="text-xs text-amber-700">At or below threshold</p></div><div className="card p-5"><p className="text-xs text-slate-500">Inventory items</p><p className="mt-2 text-2xl font-bold">{data.items.length}</p><p className="text-xs text-slate-400">Active records</p></div></div><section className="card overflow-hidden"><div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center"><div className="relative flex-1"><Search className="absolute left-3 top-3.5 text-slate-400" size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} className="input pl-9" placeholder="Search inventory…"/></div><button onClick={()=>setLowOnly(!lowOnly)} className={`btn-secondary ${lowOnly?"border-amber-500 bg-amber-50":""}`}><AlertTriangle size={16}/>Low stock</button>{data.role==="ADMIN"&&<button onClick={()=>setEdit("new")} className="btn-primary"><Plus size={16}/>Add item</button>}</div><div className="divide-y">{items.map(i=>{const low=i.quantityOnHand<=i.minimumThreshold;return <article className="flex items-center gap-3 p-4" key={i.id}><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${low?"bg-amber-50 text-amber-700":"bg-farm-50 text-farm-700"}`}><Package size={18}/></span><div className="min-w-0 flex-1"><p className="font-semibold">{i.name}</p><p className="text-sm text-slate-500">{i.quantityOnHand.toLocaleString()} {i.unit} · minimum {i.minimumThreshold.toLocaleString()} · {i.storageLocation||"No location"}</p></div><Status tone={low?"amber":"green"}>{low?"Low stock":"In stock"}</Status><button onClick={()=>setAdjust(i)} className="btn-secondary !min-h-9">Adjust</button>{data.role==="ADMIN"&&<button onClick={()=>setEdit(i)} className="grid size-9 place-items-center"><ChevronRight size={18}/></button>}</article>})}{items.length===0&&<p className="p-8 text-center text-sm text-slate-500">No items match the current filters.</p>}</div></section>{edit&&<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-5" onClick={()=>setEdit(null)}><form onSubmit={save} onClick={e=>e.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl"><div className="flex justify-between"><h2 className="text-xl font-bold">{edit==="new"?"Add inventory item":"Edit inventory item"}</h2><button type="button" onClick={()=>setEdit(null)} className="grid size-10 place-items-center rounded-full bg-slate-100"><X/></button></div><div className="mt-5 grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><label className="label">Item name</label><input name="name" defaultValue={edit==="new"?"":edit.name} className="input" required/></div><div><label className="label">Category</label><input name="category" defaultValue={edit==="new"?"":edit.category} className="input" required/></div><div><label className="label">Unit</label><input name="unit" defaultValue={edit==="new"?"":edit.unit} className="input" required/></div><div><label className="label">Quantity on hand</label><input name="quantityOnHand" type="number" min="0" step="0.001" defaultValue={edit==="new"?0:edit.quantityOnHand} className="input" required/></div><div><label className="label">Minimum threshold</label><input name="minimumThreshold" type="number" min="0" step="0.001" defaultValue={edit==="new"?0:edit.minimumThreshold} className="input" required/></div><div><label className="label">Unit cost</label><input name="unitCost" type="number" min="0" step="0.01" defaultValue={edit==="new"?"":edit.unitCost??""} className="input"/></div><div><label className="label">Supplier</label><input name="supplier" defaultValue={edit==="new"?"":edit.supplier??""} className="input"/></div><div className="sm:col-span-2"><label className="label">Storage location</label><input name="storageLocation" defaultValue={edit==="new"?"":edit.storageLocation??""} className="input"/></div><div className="sm:col-span-2"><label className="label">Notes</label><textarea name="notes" defaultValue={edit==="new"?"":edit.notes??""} className="input min-h-20 py-3"/></div></div><button disabled={pending} className="btn-primary mt-5 w-full">{pending&&<Loader2 className="animate-spin" size={17}/>}Save item</button></form></div>}{adjust&&<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-5" onClick={()=>setAdjust(null)}><form onSubmit={change} onClick={e=>e.stopPropagation()} className="w-full max-w-md rounded-t-3xl bg-white p-5 sm:rounded-3xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">Adjust {adjust.name}</h2><p className="text-sm text-slate-500">Current: {adjust.quantityOnHand} {adjust.unit}</p></div><button type="button" onClick={()=>setAdjust(null)} className="grid size-10 place-items-center rounded-full bg-slate-100"><X/></button></div><label className="label mt-5">Change in quantity</label><input name="quantity" type="number" step="0.001" placeholder="Use a negative value for usage" className="input" required/><label className="label mt-4">Reason</label><input name="reason" className="input" required/><button disabled={pending} className="btn-primary mt-5 w-full">Save adjustment</button></form></div>}</>}
+import { adjustStockAction, saveInventoryItemAction } from "@/app/actions";
+import { money } from "@/lib/utils";
+import { AlertTriangle, ChevronRight, Loader2, Package, Plus, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { Status } from "./ui";
+type Tx = { id: string; quantity: number; type: string; reason: string | null; createdAt: string };
+type Item = {
+  id: string;
+  name: string;
+  category: string;
+  quantityOnHand: number;
+  unit: string;
+  minimumThreshold: number;
+  unitCost: number | null;
+  supplier: string | null;
+  storageLocation: string | null;
+  expirationDate: string | null;
+  notes: string | null;
+  transactions: Tx[];
+};
+export function InventoryView({
+  data,
+}: {
+  data: { role: "ADMIN" | "OPERATOR"; items: Item[]; estimatedValue: number; lowStockCount: number };
+}) {
+  const [search, setSearch] = useState(""),
+    [lowOnly, setLowOnly] = useState(false),
+    [edit, setEdit] = useState<Item | "new" | null>(null),
+    [adjust, setAdjust] = useState<Item | null>(null),
+    [message, setMessage] = useState(""),
+    [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const items = useMemo(
+    () =>
+      data.items.filter(
+        (i) =>
+          (!search || `${i.name} ${i.category}`.toLowerCase().includes(search.toLowerCase())) &&
+          (!lowOnly || i.quantityOnHand <= i.minimumThreshold),
+      ),
+    [data.items, search, lowOnly],
+  );
+  function save(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await saveInventoryItemAction({
+        ...Object.fromEntries(f),
+        id: edit !== "new" ? edit?.id : undefined,
+        quantityOnHand: Number(f.get("quantityOnHand")),
+        minimumThreshold: Number(f.get("minimumThreshold")),
+        unitCost: f.get("unitCost") ? Number(f.get("unitCost")) : undefined,
+      });
+      if (!result.ok) setMessage(result.error);
+      else {
+        setMessage("Inventory item saved.");
+        setEdit(null);
+        router.refresh();
+      }
+    });
+  }
+  function change(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await adjustStockAction({
+        itemId: adjust!.id,
+        quantity: Number(f.get("quantity")),
+        reason: String(f.get("reason")),
+      });
+      setMessage(result.ok ? "Stock adjustment saved." : result.error);
+      if (result.ok) {
+        setAdjust(null);
+        router.refresh();
+      }
+    });
+  }
+  return (
+    <>
+      {message && (
+        <p role="status" className="mb-4 rounded-xl bg-farm-50 p-3 text-sm font-semibold text-farm-700">
+          {message}
+        </p>
+      )}
+      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+        <div className="card p-5">
+          <p className="text-xs text-slate-500">Estimated value</p>
+          <p className="mt-2 text-2xl font-bold">{money(data.estimatedValue)}</p>
+          <p className="text-xs text-slate-400">Quantity × recorded unit cost</p>
+        </div>
+        <div className="card p-5">
+          <p className="text-xs text-slate-500">Low-stock items</p>
+          <p className="mt-2 text-2xl font-bold">{data.lowStockCount}</p>
+          <p className="text-xs text-amber-700">At or below threshold</p>
+        </div>
+        <div className="card p-5">
+          <p className="text-xs text-slate-500">Inventory items</p>
+          <p className="mt-2 text-2xl font-bold">{data.items.length}</p>
+          <p className="text-xs text-slate-400">Active records</p>
+        </div>
+      </div>
+      <section className="card overflow-hidden">
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3.5 text-slate-400" size={16} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input pl-9"
+              placeholder="Search inventory…"
+            />
+          </div>
+          <button
+            onClick={() => setLowOnly(!lowOnly)}
+            className={`btn-secondary ${lowOnly ? "border-amber-500 bg-amber-50" : ""}`}
+          >
+            <AlertTriangle size={16} />
+            Low stock
+          </button>
+          {data.role === "ADMIN" && (
+            <button onClick={() => setEdit("new")} className="btn-primary">
+              <Plus size={16} />
+              Add item
+            </button>
+          )}
+        </div>
+        <div className="divide-y">
+          {items.map((i) => {
+            const low = i.quantityOnHand <= i.minimumThreshold;
+            return (
+              <article className="flex items-center gap-3 p-4" key={i.id}>
+                <span
+                  className={`grid size-10 shrink-0 place-items-center rounded-xl ${low ? "bg-amber-50 text-amber-700" : "bg-farm-50 text-farm-700"}`}
+                >
+                  <Package size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{i.name}</p>
+                  <p className="text-sm text-slate-500">
+                    {i.quantityOnHand.toLocaleString()} {i.unit} · minimum{" "}
+                    {i.minimumThreshold.toLocaleString()} · {i.storageLocation || "No location"}
+                  </p>
+                </div>
+                <Status tone={low ? "amber" : "green"}>{low ? "Low stock" : "In stock"}</Status>
+                <button onClick={() => setAdjust(i)} className="btn-secondary !min-h-9">
+                  Adjust
+                </button>
+                {data.role === "ADMIN" && (
+                  <button onClick={() => setEdit(i)} className="grid size-9 place-items-center">
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+              </article>
+            );
+          })}
+          {items.length === 0 && (
+            <p className="p-8 text-center text-sm text-slate-500">
+              {data.items.length === 0
+                ? "No materials have been purchased or recorded yet."
+                : "No items match the current filters."}
+            </p>
+          )}
+        </div>
+      </section>
+      {edit && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-5"
+          onClick={() => setEdit(null)}
+        >
+          <form
+            onSubmit={save}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl"
+          >
+            <div className="flex justify-between">
+              <h2 className="text-xl font-bold">
+                {edit === "new" ? "Add inventory item" : "Edit inventory item"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEdit(null)}
+                className="grid size-10 place-items-center rounded-full bg-slate-100"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="label">Item name</label>
+                <input
+                  name="name"
+                  defaultValue={edit === "new" ? "" : edit.name}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Category</label>
+                <input
+                  name="category"
+                  defaultValue={edit === "new" ? "" : edit.category}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Unit</label>
+                <input
+                  name="unit"
+                  defaultValue={edit === "new" ? "" : edit.unit}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Quantity on hand</label>
+                <input
+                  name="quantityOnHand"
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  defaultValue={edit === "new" ? 0 : edit.quantityOnHand}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Minimum threshold</label>
+                <input
+                  name="minimumThreshold"
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  defaultValue={edit === "new" ? 0 : edit.minimumThreshold}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Unit cost</label>
+                <input
+                  name="unitCost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  defaultValue={edit === "new" ? "" : (edit.unitCost ?? "")}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">Supplier</label>
+                <input
+                  name="supplier"
+                  defaultValue={edit === "new" ? "" : (edit.supplier ?? "")}
+                  className="input"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">Storage location</label>
+                <input
+                  name="storageLocation"
+                  defaultValue={edit === "new" ? "" : (edit.storageLocation ?? "")}
+                  className="input"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label">Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={edit === "new" ? "" : (edit.notes ?? "")}
+                  className="input min-h-20 py-3"
+                />
+              </div>
+            </div>
+            <button disabled={pending} className="btn-primary mt-5 w-full">
+              {pending && <Loader2 className="animate-spin" size={17} />}Save item
+            </button>
+          </form>
+        </div>
+      )}
+      {adjust && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-5"
+          onClick={() => setAdjust(null)}
+        >
+          <form
+            onSubmit={change}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-t-3xl bg-white p-5 sm:rounded-3xl"
+          >
+            <div className="flex justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Adjust {adjust.name}</h2>
+                <p className="text-sm text-slate-500">
+                  Current: {adjust.quantityOnHand} {adjust.unit}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdjust(null)}
+                className="grid size-10 place-items-center rounded-full bg-slate-100"
+              >
+                <X />
+              </button>
+            </div>
+            <label className="label mt-5">Change in quantity</label>
+            <input
+              name="quantity"
+              type="number"
+              step="0.001"
+              placeholder="Use a negative value for usage"
+              className="input"
+              required
+            />
+            <label className="label mt-4">Reason</label>
+            <input name="reason" className="input" required />
+            <button disabled={pending} className="btn-primary mt-5 w-full">
+              Save adjustment
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}

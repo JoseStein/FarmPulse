@@ -75,7 +75,7 @@ export async function getActiveCropCycle() {
     seedQuantityKg: decimal(cycle.seedQuantityKg),
     expectedYieldKg: decimal(cycle.expectedYieldKg),
     actualYieldKg: decimal(cycle.actualYieldKg),
-    plannedPlantingDate: iso(cycle.plannedPlantingDate)!,
+    plannedPlantingDate: iso(cycle.plannedPlantingDate),
     actualPlantingDate: iso(cycle.actualPlantingDate),
     expectedHarvestDate: iso(cycle.expectedHarvestDate),
     actualHarvestDate: iso(cycle.actualHarvestDate),
@@ -501,7 +501,8 @@ export async function getCropGuideArticles(search?: string) {
 
 export async function getSectorSummaries() {
   const { farm, field, cycle, user, role } = await requireActiveCycle();
-  const cycleStart = cycle.actualPlantingDate ?? cycle.plannedPlantingDate;
+  const cycleStart = cycle.actualPlantingDate ?? cycle.createdAt;
+  const irrigationEnabled = Boolean(cycle.actualPlantingDate);
   const [setting, sectors, totals, weather] = await Promise.all([
     prisma.appSetting.findUnique({ where: { farmId_key: { farmId: farm.id, key: "irrigation_design" } } }),
     prisma.sector.findMany({
@@ -529,17 +530,17 @@ export async function getSectorSummaries() {
     user: { ...user, role },
     farm: { ...farm, latitude: decimal(farm.latitude)!, longitude: decimal(farm.longitude)! },
     field: { ...field, areaHa: decimal(field.areaHa)! },
-    cycle: { id: cycle.id, crop: cycle.crop.name, stage: cycle.growthStage?.name ?? "Not set" },
+    cycle: { id: cycle.id, crop: cycle.crop.name, stage: cycle.growthStage?.name ?? "Not set", planted: Boolean(cycle.actualPlantingDate) },
     design,
     sectors: sectors.map((sector) => {
       const last = sector.irrigationEvents[0];
       const hours = last ? Math.max(0, (Date.now() - last.startedAt.getTime()) / 36e5) : 999;
-      const rule = irrigationRecommendation({
+      const rule = irrigationEnabled ? irrigationRecommendation({
         hoursSinceIrrigation: hours,
         rainLast24Mm: recentRain,
         forecastRain24Mm: forecastRain,
         stage: cycle.growthStage?.name ?? "",
-      });
+      }) : { type: "NONE" as const, title: "Recommendations not active", reason: "The crop has not been planted yet.", action: "Irrigation recommendations will begin after planting and crop-cycle activation." };
       const recommendation = {
         ...rule,
         dataUsed: {
@@ -562,6 +563,8 @@ export async function getSectorSummaries() {
           ? "Attention needed"
           : overdue
             ? "Task overdue"
+            : !irrigationEnabled
+              ? "Planning"
             : recommendation.type === "IRRIGATE_TODAY"
               ? "Irrigation due"
               : "Healthy";
@@ -710,7 +713,9 @@ export async function getDashboardSummary() {
   const actual = decimal(expenseAgg._sum.amount) ?? 0;
   const planned = decimal(budget?.plannedAmount) ?? 0;
   const planting = cycle.actualPlantingDate ?? cycle.plannedPlantingDate;
-  const daysSincePlanting = Math.max(0, Math.floor((Date.now() - planting.getTime()) / 864e5));
+  const daysSincePlanting = cycle.actualPlantingDate
+    ? Math.max(0, Math.floor((Date.now() - cycle.actualPlantingDate.getTime()) / 864e5))
+    : null;
   const daysRemaining = cycle.expectedHarvestDate
     ? Math.max(0, Math.ceil((cycle.expectedHarvestDate.getTime() - Date.now()) / 864e5))
     : null;
@@ -723,7 +728,8 @@ export async function getDashboardSummary() {
       crop: cycle.crop.name,
       variety: cycle.variety,
       stage: cycle.growthStage?.name ?? "Not set",
-      plantingDate: iso(planting)!,
+      plantingDate: iso(planting),
+      planted: Boolean(cycle.actualPlantingDate),
       expectedHarvestDate: iso(cycle.expectedHarvestDate),
       daysSincePlanting,
       daysRemaining,
@@ -825,12 +831,11 @@ export async function getGuidePageData() {
       orderBy: { startedAt: "desc" },
     }),
   ]);
-  const planting = cycle.actualPlantingDate ?? cycle.plannedPlantingDate;
   const stage = cycle.growthStage?.name ?? "Not set";
   const contextTerms = new Set([stage.toLowerCase()]);
   for (const row of [...issues, ...tasks]) contextTerms.add(row.category.toLowerCase());
   if (weather && (decimal(weather.precipitationMm) ?? 0) > 10) contextTerms.add("drainage");
-  if (!lastIrrigation || Date.now() - lastIrrigation.startedAt.getTime() > 3 * 864e5)
+  if (cycle.actualPlantingDate && (!lastIrrigation || Date.now() - lastIrrigation.startedAt.getTime() > 3 * 864e5))
     contextTerms.add("irrigation");
   const articles = (guide?.articles ?? [])
     .map((article) => {
@@ -849,7 +854,9 @@ export async function getGuidePageData() {
     guide: { id: guide?.id ?? null, title: guide?.title ?? `${cycle.crop.name} field guide` },
     crop: cycle.crop.name,
     stage,
-    daysSincePlanting: Math.max(0, Math.floor((Date.now() - planting.getTime()) / 864e5)),
+    daysSincePlanting: cycle.actualPlantingDate
+      ? Math.max(0, Math.floor((Date.now() - cycle.actualPlantingDate.getTime()) / 864e5))
+      : null,
     articles,
     context: {
       openIssues: issues.length,

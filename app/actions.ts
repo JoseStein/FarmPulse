@@ -724,16 +724,16 @@ export async function updateCropCycleAction(input: unknown): Promise<ActionResul
           variety: data.variety,
           actualPlantingDate: data.actualPlantingDate
             ? new Date(`${data.actualPlantingDate}T12:00:00Z`)
-            : undefined,
+            : null,
           expectedHarvestDate: data.expectedHarvestDate
             ? new Date(`${data.expectedHarvestDate}T12:00:00Z`)
-            : undefined,
-          growthStageId: data.growthStageId || undefined,
+            : null,
+          growthStageId: data.growthStageId || null,
           populationTarget: data.populationTarget,
           expectedYieldKg: data.expectedYieldKg,
           actualHarvestDate: data.actualHarvestDate
             ? new Date(`${data.actualHarvestDate}T12:00:00Z`)
-            : undefined,
+            : null,
           actualYieldKg: data.actualYieldKg,
           status: data.status,
         },

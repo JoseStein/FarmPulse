@@ -183,7 +183,7 @@ model CropCycle {
   cropId              String            @db.Uuid
   growthStageId       String?           @db.Uuid
   variety             String?
-  plannedPlantingDate DateTime
+  plannedPlantingDate DateTime?
   actualPlantingDate  DateTime?
   expectedHarvestDate DateTime?
   actualHarvestDate   DateTime?

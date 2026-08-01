@@ -115,8 +115,12 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
         </div>
         <div className="card p-5">
           <p className="text-xs text-slate-500">Cost per hectare / acre</p>
-          <p className="mt-2 text-2xl font-bold">{money(data.totals.actual / data.areaHa)}</p>
-          <p className="mt-1 text-xs text-slate-400">{money(data.totals.actual / acres)} per acre</p>
+          <p className="mt-2 text-2xl font-bold">
+            {data.totals.actual > 0 ? money(data.totals.actual / data.areaHa) : "Not available"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {data.totals.actual > 0 ? `${money(data.totals.actual / acres)} per acre` : "No expenses recorded"}
+          </p>
         </div>
       </div>
       <div className="mb-4 grid gap-2 sm:grid-cols-4">

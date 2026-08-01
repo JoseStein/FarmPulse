@@ -71,16 +71,15 @@ export default async function Dashboard() {
             </div>
             <p className="text-3xl font-bold">{data.cycle.crop}</p>
             <p className="mt-1 text-sm text-white/75">
-              {data.cycle.variety || "Variety not recorded"} · Planted{" "}
-              {new Intl.DateTimeFormat("en-US", { timeZone: data.farm.timezone, dateStyle: "medium" }).format(
-                new Date(data.cycle.plantingDate),
-              )}
+              {data.cycle.variety || "Variety not recorded"} · {data.cycle.plantingDate
+                ? `${data.cycle.planted ? "Planted" : "Planned"} ${new Intl.DateTimeFormat("en-US", { timeZone: data.farm.timezone, dateStyle: "medium" }).format(new Date(data.cycle.plantingDate))}`
+                : "Not planted yet"}
             </p>
           </div>
           <div className="grid grid-cols-3 divide-x divide-white/20 rounded-2xl bg-white/10 p-4 text-center">
             <div className="px-4">
-              <p className="text-2xl font-bold">{data.cycle.daysSincePlanting}</p>
-              <p className="text-xs text-white/70">days old</p>
+              <p className="text-2xl font-bold">{data.cycle.daysSincePlanting ?? "—"}</p>
+              <p className="text-xs text-white/70">{data.cycle.daysSincePlanting == null ? "not planted" : "days old"}</p>
             </div>
             <div className="px-4">
               <p className="text-xl font-bold">{data.cycle.stage}</p>

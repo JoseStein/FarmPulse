@@ -35,7 +35,7 @@ cp .env.example .env
 openssl rand -base64 32
 npm run db:start
 npx prisma migrate dev
-npm run db:seed
+npm run db:seed:development
 npm run dev
 ```
 
@@ -67,11 +67,12 @@ Never commit `.env` files or live credentials.
 ```bash
 npx prisma migrate deploy  # apply checked-in migrations
 SEED_ADMIN_PASSWORD='a-unique-12+-character-password' \
-npm run db:seed            # idempotent pilot seed
+npm run db:initialize:production # structural records only
+npm run db:seed:development      # local demo data only
 npx prisma studio          # optional local data browser
 ```
 
-The seed contains one Panama farm, Field 1, four sectors (33/33/34/33 drip lines), an active corn cycle, growth stages, tasks, irrigation, budget/expenses, inventory, equipment, guide content, a field note, an open issue, a weather snapshot, and the full irrigation-design reference.
+Production initialization is idempotent and creates only the administrator (when absent), farm, Field 1, four sectors, Corn reference stages, a Planning crop cycle with no planting date, and irrigation-design settings. The development seed adds demonstration operations and refuses to run under `NODE_ENV=production` without an explicit dangerous override.
 
 The administrator seed password is supplied only through an environment variable and is never displayed by the application. `SEED_OPERATOR_PASSWORD` is optional; without it, the sample operator is inactive. After the initial administrator signs in, real user accounts can be created under **Settings → Users and access**.
 
@@ -87,7 +88,7 @@ Tests cover metric/U.S. conversions, budget math, irrigation rules, validation, 
 
 ## Weather
 
-The default service uses Open-Meteo and requires no key. `/api/weather` caches responses for 30 minutes. If the provider fails, it returns a clearly marked sample fallback so farm logging remains available. Operational notices are suggestions, never guarantees.
+The default service uses Open-Meteo and requires no key. Weather snapshots use the configured El Cortezo coordinates. If live retrieval fails, the application uses the latest saved live snapshot or shows an unavailable state; it does not invent fixture weather.
 
 To add another provider, keep its response behind the same weather service/route contract and select it through `WEATHER_PROVIDER`.
 
@@ -104,13 +105,13 @@ The upload route accepts JPEG, PNG, WebP, HEIC, and HEIF images up to 8 MB, gene
 - The farm unit preference changes displayed area, water, pressure, flow, rainfall, temperature, and wind on key operational screens. PostgreSQL values remain metric.
 - Important multi-record writes use transactions and audit logs. Expense and journal history use soft deletion where supported.
 
-To change development passwords, update the two password values in `prisma/seed.ts` (or set hashes directly through an administrative process), then run `npm run db:seed`. Never run the published pilot credentials on an internet-facing deployment.
+Development seed passwords are supplied through `SEED_ADMIN_PASSWORD` and optional `SEED_OPERATOR_PASSWORD`; they are never stored in source. Production administrators can create individual accounts and every user can change their own password in Settings.
 
 ## Backups and known limitations
 
 Enable scheduled PostgreSQL backups and object-storage versioning before field use; both are required to reconstruct a complete journal. Test restore procedures before the crop cycle starts. CSV is the current portable report format.
 
-Known pilot limitations: one active field/cycle is selected automatically, histories are capped at 100 rows per screen/export, no offline synchronization is available, guide review/dismiss state is not persisted, notifications are not yet configurable, revenue is not modeled (profitability export reports recorded cost with zero revenue), and PDF reports are not implemented.
+Known pilot limitations: one active field/cycle is selected automatically, the map assumes the preserved four-sector layout, histories are capped at 100 rows per screen/export, no offline synchronization is available, guide review/dismiss state is not persisted, notifications are not yet configurable, revenue is not modeled (profitability remains unavailable), and PDF reports are not implemented.
 
 ## Railway deployment
 
@@ -119,7 +120,7 @@ The complete step-by-step setup and verification procedure is in [`docs/RAILWAY_
 1. Create a Railway project with PostgreSQL and this GitHub repository.
 2. Set `DATABASE_URL=${{Postgres.DATABASE_URL}}`, a generated `AUTH_SECRET`, the HTTPS `AUTH_URL`, and S3-compatible storage variables.
 3. Railway uses the Dockerfile and runs `npx prisma migrate deploy` as a pre-deploy command.
-4. Seed a new database once with unique `SEED_ADMIN_PASSWORD` and `SEED_OPERATOR_PASSWORD` values; never seed production with the local passwords.
+4. Supply a one-time `SEED_ADMIN_PASSWORD`; pre-deploy runs the structural production initializer and never the demo seed.
 5. Confirm `/api/health` reports a connected database, then verify both roles, logout, persistence, weather, uploads, and exports.
 
 The Docker image runs as a non-root user. For an internet-facing deployment, change the seeded passwords first and connect persistent object storage.

@@ -167,10 +167,10 @@ export const cropCycleSchema = z.object({
   actualPlantingDate: z.string().date().optional().or(z.literal("")),
   expectedHarvestDate: z.string().date().optional().or(z.literal("")),
   growthStageId: idSchema.optional().or(z.literal("")),
-  populationTarget: z.coerce.number().int().positive().optional(),
-  expectedYieldKg: z.coerce.number().nonnegative().optional(),
+  populationTarget: z.coerce.number().int().positive().nullable().optional(),
+  expectedYieldKg: z.coerce.number().nonnegative().nullable().optional(),
   actualHarvestDate: z.string().date().optional().or(z.literal("")),
-  actualYieldKg: z.coerce.number().nonnegative().optional(),
+  actualYieldKg: z.coerce.number().nonnegative().nullable().optional(),
   status: z.enum(["ACTIVE", "COMPLETED"]).optional(),
 });
 export const farmSettingsSchema = z.object({

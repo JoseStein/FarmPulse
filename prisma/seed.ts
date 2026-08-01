@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 const prisma = new PrismaClient();
 const at=(day:number,hour=12,minute=0)=>new Date(Date.UTC(2026,6,day,hour,minute));
 async function main(){
+  if(process.env.NODE_ENV==="production"&&process.env.ALLOW_DANGEROUS_DEVELOPMENT_SEED!=="I_UNDERSTAND_THIS_CREATES_MOCK_DATA")throw new Error("Development seed refused: NODE_ENV is production.");
   const adminPassword=process.env.SEED_ADMIN_PASSWORD;
   const operatorPassword=process.env.SEED_OPERATOR_PASSWORD;
   if(!adminPassword)throw new Error("Seeding requires SEED_ADMIN_PASSWORD.");

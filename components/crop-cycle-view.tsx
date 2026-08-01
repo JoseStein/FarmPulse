@@ -44,9 +44,9 @@ export function CropCycleView({
     startTransition(async () => {
       const result = await updateCropCycleAction({
         ...Object.fromEntries(f),
-        populationTarget: f.get("populationTarget") ? Number(f.get("populationTarget")) : undefined,
-        expectedYieldKg: f.get("expectedYieldKg") ? Number(f.get("expectedYieldKg")) : undefined,
-        actualYieldKg: f.get("actualYieldKg") ? Number(f.get("actualYieldKg")) : undefined,
+        populationTarget: f.get("populationTarget") ? Number(f.get("populationTarget")) : null,
+        expectedYieldKg: f.get("expectedYieldKg") ? Number(f.get("expectedYieldKg")) : null,
+        actualYieldKg: f.get("actualYieldKg") ? Number(f.get("actualYieldKg")) : null,
       });
       setMessage(result.ok ? "Crop cycle updated." : result.error);
       if (result.ok) {

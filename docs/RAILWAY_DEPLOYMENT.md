@@ -39,16 +39,20 @@ For a brand-new pilot database, temporarily add strong values for:
 
 ```dotenv
 SEED_ADMIN_PASSWORD=<unique-password-at-least-12-characters>
-SEED_OPERATOR_PASSWORD=<different-password-at-least-12-characters>
+INITIAL_ADMIN_EMAIL=<administrator-email>
 ```
 
-After the first successful deployment, run the seed once inside the deployed application container:
+The pre-deploy command automatically applies migrations and runs the idempotent structural initializer. It does not add demo tasks, costs, irrigation, stock, equipment, or weather. To run it manually:
 
 ```bash
-railway ssh -- npm run db:seed
+railway ssh -- npm run db:initialize:production
 ```
 
-When `SEED_ADMIN_PASSWORD` is present and no active administrator exists, deployment automatically runs the idempotent pilot seed after migrations. Once initialized, later deployments skip seeding, so removed users stay removed and user-chosen passwords remain unchanged. `SEED_OPERATOR_PASSWORD` is optional; omit it to keep the sample operator inactive. Confirm the initial seed succeeds, sign in, and then remove the temporary seed password variables.
+`SEED_ADMIN_PASSWORD` is used only when the configured administrator does not exist; an existing password is never overwritten. Confirm the initial login, then remove `SEED_ADMIN_PASSWORD`. Never run `db:seed:development` against production.
+
+### Clean an existing pilot database
+
+Read [`PRODUCTION_DATA_CLEANUP.md`](PRODUCTION_DATA_CLEANUP.md). Always review a dry run, verify a recoverable Railway PostgreSQL backup, execute with all confirmations, and run the verifier afterward. Do not use `prisma migrate reset`.
 
 ## 4. Verify the deployment
 
