@@ -1,16 +1,17 @@
 import "dotenv/config";
 import { PrismaClient, Role, Status, TaskStatus, Priority, ActivityType, IssueStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 const prisma = new PrismaClient();
 const at=(day:number,hour=12,minute=0)=>new Date(Date.UTC(2026,6,day,hour,minute));
 async function main(){
   const adminPassword=process.env.SEED_ADMIN_PASSWORD;
   const operatorPassword=process.env.SEED_OPERATOR_PASSWORD;
-  if(!adminPassword||!operatorPassword)throw new Error("Seeding requires SEED_ADMIN_PASSWORD and SEED_OPERATOR_PASSWORD.");
-  if(adminPassword.length<12||operatorPassword.length<12)throw new Error("Seed passwords must contain at least 12 characters.");
-  const [adminPasswordHash,operatorPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(operatorPassword,12)]);
-  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN},create:{email:"admin@farmpulse.local",name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN}});
-  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:{passwordHash:operatorPasswordHash,role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash:operatorPasswordHash,role:Role.OPERATOR}});
+  if(!adminPassword)throw new Error("Seeding requires SEED_ADMIN_PASSWORD.");
+  if(adminPassword.length<12||(operatorPassword&&operatorPassword.length<12))throw new Error("Seed passwords must contain at least 12 characters.");
+  const [adminPasswordHash,operatorPasswordHash]=await Promise.all([bcrypt.hash(adminPassword,12),bcrypt.hash(operatorPassword??randomBytes(32).toString("base64url"),12)]);
+  const admin=await prisma.user.upsert({where:{email:"admin@farmpulse.local"},update:{name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN,active:true},create:{email:"admin@farmpulse.local",name:"Wilkes Ladera",passwordHash:adminPasswordHash,role:Role.ADMIN}});
+  const operator=await prisma.user.upsert({where:{email:"operator@farmpulse.local"},update:operatorPassword?{passwordHash:operatorPasswordHash,role:Role.OPERATOR,active:true}:{role:Role.OPERATOR},create:{email:"operator@farmpulse.local",name:"Mateo Rivera",passwordHash:operatorPasswordHash,role:Role.OPERATOR,active:Boolean(operatorPassword)}});
   let farm=await prisma.farm.findFirst({where:{name:"FarmPulse Panama Pilot"}});
   if(!farm)farm=await prisma.farm.create({data:{name:"FarmPulse Panama Pilot",country:"Panama",timezone:"America/Panama",currency:"USD",unitSystem:"METRIC",latitude:8.43,longitude:-82.43}});
   for(const [user,role] of [[admin,Role.ADMIN],[operator,Role.OPERATOR]] as const)await prisma.farmMembership.upsert({where:{farmId_userId:{farmId:farm.id,userId:user.id}},update:{role},create:{farmId:farm.id,userId:user.id,role}});

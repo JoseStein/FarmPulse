@@ -48,7 +48,7 @@ After the first successful deployment, run the seed once inside the deployed app
 railway ssh -- npm run db:seed
 ```
 
-When both `SEED_*` variables are present, the next deployment automatically runs the idempotent pilot seed after migrations. Confirm the seed succeeds, sign in, and then remove the two variables. Keeping them would reset the initial-account password hashes on every deployment.
+When `SEED_ADMIN_PASSWORD` is present, the next deployment automatically runs the idempotent pilot seed after migrations. `SEED_OPERATOR_PASSWORD` is optional; omit it to keep the sample operator inactive. Confirm the seed succeeds, sign in, and then remove the seed password variables. Keeping them would reset the initial-account password hashes on every deployment.
 
 ## 4. Verify the deployment
 
