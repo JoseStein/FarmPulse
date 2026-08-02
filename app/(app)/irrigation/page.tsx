@@ -77,7 +77,7 @@ export default async function IrrigationPage() {
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {data.sectors.map((s) => (
-          <article className="card p-5" key={s.id}>
+          <article className={`card p-5 ${s.id === data.selectedSectorId ? "border-farm-500 ring-2 ring-farm-100" : ""}`} key={s.id}>
             <div className="flex items-start justify-between">
               <span
                 className={`grid size-10 place-items-center rounded-xl ${s.status === "Irrigation due" ? "bg-blue-50 text-blue-600" : s.status === "Healthy" ? "bg-farm-50 text-farm-700" : "bg-amber-50 text-amber-700"}`}
@@ -90,7 +90,7 @@ export default async function IrrigationPage() {
                 {s.status}
               </Status>
             </div>
-            <h2 className="mt-4 text-lg font-bold">{s.name}</h2>
+            <div className="mt-4 flex items-center gap-2"><h2 className="text-lg font-bold">{s.name}</h2>{s.id === data.selectedSectorId && <Status tone="green">Working sector</Status>}</div>
             <p className="text-xs text-slate-500">
               {s.dripLines} drip lines · {s.irrigationEventCount} cycle events
             </p>

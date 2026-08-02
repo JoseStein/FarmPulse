@@ -274,7 +274,7 @@ Expenses & Budget tracks actual costs for the current production area and compar
 3. Enter a recognizable budget name and the planned amount in the farm currency.
 4. Select **Save budget**.
 
-FarmPulse immediately recalculates actual cost, remaining budget, percentage used, and the Dashboard budget snapshot. Each active crop cycle has its own budget, so changing lots does not mix their planned or actual amounts.
+FarmPulse immediately recalculates actual cost, remaining budget, percentage used, and the Dashboard budget snapshot. Each active crop cycle has its own budget, so changing production areas does not mix their planned or actual amounts. The budget window shows the current working sector separately: new expenses default to it, while the crop-cycle budget covers all sectors.
 
 Use category, sector, from-date, and to-date filters to narrow the record list. The headline budget calculations continue to represent the complete active crop cycle so filtering the table does not make the overall budget appear to change. Select **CSV** to download the currently filtered expense data.
 

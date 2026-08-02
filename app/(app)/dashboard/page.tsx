@@ -66,7 +66,7 @@ export default async function Dashboard() {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Status>Active crop cycle</Status>
               <span className="text-xs text-white/70">
-                {data.field.name} · {usUnits?`${hectaresToAcres(data.field.areaHa).toFixed(2)} ac`:`${data.field.areaHa.toFixed(2)} ha`}
+                {usUnits?`${hectaresToAcres(data.field.areaHa).toFixed(2)} ac`:`${data.field.areaHa.toFixed(2)} ha`} · all sectors
               </span>
             </div>
             <p className="text-3xl font-bold">{data.cycle.crop}</p>

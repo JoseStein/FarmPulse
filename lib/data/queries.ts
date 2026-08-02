@@ -668,7 +668,12 @@ export async function getExpensePageData(filters?: {
     }),
     getSelectedSector(context.field.id),
   ]);
-  return { ...expenseData, sectors, categories: categories.map((c) => c.category), selectedSectorId: selectedSector?.id };
+  return {
+    ...expenseData,
+    sectors,
+    categories: categories.map((c) => c.category),
+    selectedSector: selectedSector ? { id: selectedSector.id, name: selectedSector.name } : null,
+  };
 }
 
 export async function getInventory() {

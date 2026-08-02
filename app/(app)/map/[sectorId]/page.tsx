@@ -16,7 +16,7 @@ export default async function SectorPage({ params }: { params: Promise<{ sectorI
         Back to field map
       </Link>
       <PageHeader
-        eyebrow={data.field.name}
+        eyebrow="Working-sector details"
         title={s.name}
         description={`${s.dripLines} drip lines · active ${data.cycle.crop} cycle`}
         action={

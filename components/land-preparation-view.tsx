@@ -108,7 +108,7 @@ export function LandPreparationView({ data }: { data: Data }) {
                 <Status tone="blue">Pre-planting</Status>
                 <span className="text-xs text-white/70">Rule-based · no invented measurements</span>
               </div>
-              <h2 className="mt-4 text-2xl font-bold">Early setup for {data.field.name}</h2>
+              <h2 className="mt-4 text-2xl font-bold">Early production setup</h2>
               <p className="mt-2 max-w-2xl text-sm text-white/75">
                 FarmPulse is using saved records and live weather now. Unknown physical conditions remain explicitly unassessed until someone can verify them on the land.
               </p>

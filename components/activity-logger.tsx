@@ -380,14 +380,8 @@ export function ActivityLogger({
               <p className="font-semibold text-farm-900">{formConfig.title}</p>
               <p className="mt-1 text-sm text-farm-700">{formConfig.description}</p>
             </div>
-            <div className="min-w-0">
-              <label className="label">Field</label>
-              <div className="input flex items-center bg-slate-50">
-                {data.field.name}
-              </div>
-            </div>
-            <div className="min-w-0">
-              <label className="label">Sector</label>
+            <div className="min-w-0 sm:col-span-2">
+              <label className="label">Working sector</label>
               <select
                 name="sectorId"
                 className="input"
@@ -401,6 +395,7 @@ export function ActivityLogger({
                   </option>
                 ))}
               </select>
+              <p className="mt-2 text-xs text-slate-500">Prefilled from Farm Map. Choose All sectors only when the record applies to the complete production area.</p>
             </div>
             {type === "PLANTING" && (
               <>
@@ -443,7 +438,7 @@ export function ActivityLogger({
                     maxLength={120}
                   />
                   <p className="mt-2 text-xs text-slate-500">
-                    Saving this planting makes the selected crop the active crop for {data.field.name}.
+                    Saving this planting makes the selected crop active across the current production area.
                   </p>
                 </div>
               </>

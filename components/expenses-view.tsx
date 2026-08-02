@@ -28,7 +28,7 @@ type Data = {
   field: { id: string; name: string };
   cycle: { id: string; crop: string };
   budget: { id: string; name: string; plannedAmount: number } | null;
-  selectedSectorId?: string;
+  selectedSector: { id: string; name: string } | null;
   rows: ExpenseRow[];
   totals: { actual: number; planned: number; remaining: number; variance: number; percentUsed: number };
   byCategory: Array<{ category: string; amount: number }>;
@@ -351,7 +351,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
               </div>
               <div>
                 <label className="label">Sector</label>
-                <select name="sectorId" className="input" defaultValue={editing ? editing.sector?.id ?? "" : data.selectedSectorId ?? ""}>
+                <select name="sectorId" className="input" defaultValue={editing ? editing.sector?.id ?? "" : data.selectedSector?.id ?? ""}>
                   <option value="">All sectors</option>
                   {data.sectors.map((s) => (
                     <option value={s.id} key={s.id}>
@@ -400,7 +400,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                 <div>
                   <h2 className="text-xl font-bold">{data.budget ? "Edit budget" : "Set budget"}</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    {data.field.name} · {data.cycle.crop} active crop cycle
+                    All sectors · {data.cycle.crop} crop cycle
                   </p>
                 </div>
               </div>
@@ -419,7 +419,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                 <input
                   name="name"
                   className="input"
-                  defaultValue={data.budget?.name ?? `${data.field.name} · ${data.cycle.crop} budget`}
+                  defaultValue={data.budget?.name ?? `${data.cycle.crop} crop-cycle budget`}
                   minLength={2}
                   maxLength={160}
                   required
@@ -438,9 +438,10 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                   required
                 />
               </div>
-              <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
-                This budget applies only to the current production area and its active crop cycle. Logged expenses will update the amount used, remaining balance, and percentage automatically.
-              </p>
+              <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+                <p><b>Current working sector:</b> {data.selectedSector?.name ?? "Not selected"}</p>
+                <p className="mt-1">New expenses default to that sector. This budget covers the complete active crop cycle across all sectors.</p>
+              </div>
             </div>
             {message && !message.ok && (
               <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{message.text}</p>

@@ -79,9 +79,9 @@ export function LandDesignView({
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {fields.map((field) => (
+        {fields.map((field, index) => (
           <article key={field.id} className="card p-4">
-            <div className="flex items-start justify-between gap-2"><div><p className="font-bold">{field.name}</p><p className="text-sm text-slate-500">{field.areaHa.toFixed(2)} ha</p></div><Status tone="blue">{field.cycle?.growthStage?.name ?? "No cycle"}</Status></div>
+            <div className="flex items-start justify-between gap-2"><div><p className="font-bold">{fields.length > 1 ? field.name : "Current production area"}</p><p className="text-sm text-slate-500">{field.areaHa.toFixed(2)} ha{fields.length > 1 ? ` · Area ${index + 1}` : ""}</p></div><Status tone="blue">{field.cycle?.growthStage?.name ?? "No cycle"}</Status></div>
             <p className="mt-4 text-xl font-bold text-farm-800">{field.cycle?.crop.name ?? "Not assigned"}</p>
             <p className="mt-1 text-xs text-slate-500">{field.sectors.length} irrigation zone{field.sectors.length === 1 ? "" : "s"} · {field.sectors.reduce((sum, sector) => sum + sector.dripLines, 0)} planned drip lines</p>
           </article>
