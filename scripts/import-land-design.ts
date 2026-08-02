@@ -12,6 +12,10 @@ const MELON_STAGES = ["Planning", "Land preparation", "Planting", "Germination",
 
 async function operationalCounts(farmId: string) {
   const fieldWhere = { field: { farmId } };
+  const sectorIds = (await prisma.sector.findMany({
+    where: { field: { farmId } },
+    select: { id: true },
+  })).map((sector) => sector.id);
   const [tasks, activities, expenses, notes, issues, irrigationEvents, budgets, recommendations] = await Promise.all([
     prisma.task.count({ where: fieldWhere }),
     prisma.activity.count({ where: fieldWhere }),
@@ -20,7 +24,7 @@ async function operationalCounts(farmId: string) {
     prisma.issue.count({ where: fieldWhere }),
     prisma.irrigationEvent.count({ where: { sector: { field: { farmId } } } }),
     prisma.budget.count({ where: { farmId } }),
-    prisma.recommendation.count({ where: { sector: { field: { farmId } } } }),
+    prisma.recommendation.count({ where: { sectorId: { in: sectorIds } } }),
   ]);
   return { tasks, activities, expenses, notes, issues, irrigationEvents, budgets, recommendations };
 }
