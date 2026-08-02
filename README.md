@@ -1,10 +1,12 @@
 # FarmPulse
 
-FarmPulse is a responsive agricultural operations pilot for one approximately one-hectare corn field in Panama. It gives a U.S.-based administrator a clear remote view of the crop while letting a Panama field operator record work in a few taps.
+FarmPulse is a responsive agricultural operations application for a multi-lot farm in Panama. It gives remote administrators a clear view of production while letting field operators record work in a few taps.
 
-The pilot deliberately focuses on the real crop-cycle workflow: today’s decisions, four irrigation sectors, tasks, fast activity logs, weather context, costs, notes/issues, inventory, equipment, and curated corn guidance. Its data model is ready for additional farms, fields, sectors, crop cycles, and crops without introducing billing or generic SaaS complexity.
+The current release focuses on real crop-cycle workflows: today’s decisions, land preparation and design, field and irrigation sectors, tasks, crop-specific activity logs, weather context, costs, notes/issues, inventory, equipment, and curated crop guidance. Crops are selected independently for each production lot; labels such as corn and melon in the source land drawing are examples, not fixed assignments.
 
 ## Product tour
+
+For a complete, role-aware explanation of every navigation blade and workflow, see the [FarmPulse user guide](docs/USER_GUIDE.md).
 
 Screenshot placeholders for deployment documentation:
 
@@ -23,7 +25,7 @@ Screenshot placeholders for deployment documentation:
 - **Storage:** private attachment route backed by S3-compatible object storage in production and local files only in development
 - **PWA:** installable manifest, mobile safe-area navigation, and app icon. True offline synchronization is a future phase.
 
-All operational screens now load farm-scoped PostgreSQL records. Server actions persist tasks, activities and irrigation, expenses, notes/issues, inventory usage and adjustments, equipment maintenance, crop-cycle changes, and settings. Dashboard, map, guide, weather fallback, and CSV reports are calculated from those records.
+All operational screens now load farm-scoped PostgreSQL records. Server actions persist tasks, activities and irrigation, crop-cycle budgets and expenses, notes/issues, inventory usage and adjustments, equipment maintenance, crop-cycle changes, and settings. Dashboard, map, guide, weather fallback, and CSV reports are calculated from those records.
 
 ## Local setup
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { createExpenseAction, deleteExpenseAction } from "@/app/actions";
+import { createExpenseAction, deleteExpenseAction, saveBudgetAction } from "@/app/actions";
 import { money } from "@/lib/utils";
-import { Plus, Receipt, Search, X, CheckCircle2, Download, Loader2, Trash2,Pencil } from "lucide-react";
+import { Plus, Receipt, Search, X, CheckCircle2, Download, Loader2, Trash2, Pencil, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -25,6 +25,9 @@ type Data = {
   role: "ADMIN" | "OPERATOR";
   currency: string;
   areaHa: number;
+  field: { id: string; name: string };
+  cycle: { id: string; crop: string };
+  budget: { id: string; name: string; plannedAmount: number } | null;
   rows: ExpenseRow[];
   totals: { actual: number; planned: number; remaining: number; variance: number; percentUsed: number };
   byCategory: Array<{ category: string; amount: number }>;
@@ -36,6 +39,7 @@ type Data = {
 export function ExpensesView({ data, startNew = false }: { data: Data; startNew?: boolean }) {
   const [open, setOpen] = useState(startNew),
     [editing,setEditing]=useState<ExpenseRow|null>(null),
+    [budgetOpen,setBudgetOpen]=useState(false),
     [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null),
     [pending, startTransition] = useTransition();
   const router = useRouter(),
@@ -82,6 +86,23 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
       router.refresh();
     });
   }
+  function saveBudget(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await saveBudgetAction({
+        name: String(form.get("name") || ""),
+        plannedAmount: Number(form.get("plannedAmount")),
+      });
+      if (!result.ok) setMessage({ ok: false, text: result.error });
+      else {
+        setMessage({ ok: true, text: "Budget saved. All totals have been recalculated." });
+        setBudgetOpen(false);
+        router.refresh();
+      }
+    });
+  }
   const max = Math.max(...data.byCategory.map((x) => x.amount), 1);
   return (
     <>
@@ -102,9 +123,23 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
           </p>
         </div>
         <div className="card p-5">
-          <p className="text-xs text-slate-500">Planned budget</p>
-          <p className="mt-2 text-2xl font-bold">{money(data.totals.planned)}</p>
-          <p className="mt-1 text-xs text-slate-400">Planned value</p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs text-slate-500">Planned budget</p>
+              <p className="mt-2 text-2xl font-bold">{money(data.totals.planned)}</p>
+              <p className="mt-1 text-xs text-slate-400">{data.budget?.name ?? `${data.cycle.crop} cycle · not set`}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setBudgetOpen(true)}
+              className="btn-secondary shrink-0 !min-h-9 !px-3"
+              aria-label={data.budget ? "Edit budget" : "Set budget"}
+              title={data.budget ? "Edit budget" : "Set budget"}
+            >
+              <Pencil size={15} />
+              {data.budget ? "Edit" : "Set budget"}
+            </button>
+          </div>
         </div>
         <div className="card p-5">
           <p className="text-xs text-slate-500">Budget remaining</p>
@@ -342,6 +377,76 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
             )}
             <button disabled={pending} className="btn-primary mt-6 w-full">
               {pending && <Loader2 size={17} className="animate-spin" />}Save expense
+            </button>
+          </form>
+        </div>
+      )}
+      {budgetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-5"
+          onClick={() => setBudgetOpen(false)}
+        >
+          <form
+            onSubmit={saveBudget}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg rounded-t-3xl bg-white p-5 sm:rounded-3xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-farm-50 text-farm-700">
+                  <WalletCards size={19} />
+                </span>
+                <div>
+                  <h2 className="text-xl font-bold">{data.budget ? "Edit budget" : "Set budget"}</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {data.field.name} · {data.cycle.crop} active crop cycle
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBudgetOpen(false)}
+                className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100"
+                aria-label="Close budget form"
+              >
+                <X />
+              </button>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="label">Budget name</label>
+                <input
+                  name="name"
+                  className="input"
+                  defaultValue={data.budget?.name ?? `${data.field.name} · ${data.cycle.crop} budget`}
+                  minLength={2}
+                  maxLength={160}
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">Planned amount ({data.currency})</label>
+                <input
+                  name="plannedAmount"
+                  className="input"
+                  type="number"
+                  min="0.01"
+                  max="1000000000"
+                  step="0.01"
+                  defaultValue={data.budget?.plannedAmount ?? ""}
+                  required
+                />
+              </div>
+              <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
+                This budget applies only to the selected lot and its active crop cycle. Logged expenses will update the amount used, remaining balance, and percentage automatically.
+              </p>
+            </div>
+            {message && !message.ok && (
+              <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{message.text}</p>
+            )}
+            <button disabled={pending} className="btn-primary mt-5 w-full">
+              {pending && <Loader2 size={17} className="animate-spin" />}
+              Save budget
             </button>
           </form>
         </div>

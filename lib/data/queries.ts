@@ -573,10 +573,14 @@ export async function getExpenseData(filters?: {
   from?: Date;
   to?: Date;
 }) {
-  const { farm, field, role } = await requireActiveField();
-  const where: Prisma.ExpenseWhereInput = {
+  const { farm, field, cycle, role } = await requireActiveCycle();
+  const baseWhere: Prisma.ExpenseWhereInput = {
     fieldId: field.id,
+    cropCycleId: cycle.id,
     deletedAt: null,
+  };
+  const where: Prisma.ExpenseWhereInput = {
+    ...baseWhere,
     ...(filters?.category ? { category: filters.category } : {}),
     ...(filters?.sectorId ? { sectorId: filters.sectorId } : {}),
     ...(filters?.from || filters?.to ? { date: { gte: filters.from, lte: filters.to } } : {}),
@@ -591,21 +595,29 @@ export async function getExpenseData(filters?: {
       orderBy: { date: "desc" },
       take: 100,
     }),
-    prisma.expense.aggregate({ where, _sum: { amount: true } }),
+    prisma.expense.aggregate({ where: baseWhere, _sum: { amount: true } }),
     prisma.expense.groupBy({
       by: ["category"],
-      where,
+      where: baseWhere,
       _sum: { amount: true },
       orderBy: { _sum: { amount: "desc" } },
     }),
-    prisma.expense.groupBy({ by: ["sectorId"], where, _sum: { amount: true } }),
-    prisma.budget.findFirst({ where: { farmId: farm.id }, orderBy: { createdAt: "desc" } }),
+    prisma.expense.groupBy({ by: ["sectorId"], where: baseWhere, _sum: { amount: true } }),
+    prisma.budget.findFirst({
+      where: { farmId: farm.id, cropCycleId: cycle.id },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
   const actual = decimal(aggregate._sum.amount) ?? 0;
   const planned = decimal(budget?.plannedAmount) ?? 0;
   return {
     role,
     currency: farm.currency,
+    field: { id: field.id, name: field.name },
+    cycle: { id: cycle.id, crop: cycle.crop.name },
+    budget: budget
+      ? { id: budget.id, name: budget.name, plannedAmount: decimal(budget.plannedAmount)! }
+      : null,
     areaHa: decimal(field.areaHa)!,
     rows: rows.map((row) => ({
       ...row,
@@ -995,9 +1007,12 @@ export async function getDashboardSummary() {
       orderBy: { createdAt: "desc" },
       take: 3,
     }),
-    prisma.expense.aggregate({ where: { fieldId: field.id, deletedAt: null }, _sum: { amount: true } }),
+    prisma.expense.aggregate({
+      where: { fieldId: field.id, cropCycleId: cycle.id, deletedAt: null },
+      _sum: { amount: true },
+    }),
     prisma.budget.findFirst({
-      where: { farmId: farm.id, OR: [{ cropCycleId: cycle.id }, { cropCycleId: null }] },
+      where: { farmId: farm.id, cropCycleId: cycle.id },
       orderBy: { createdAt: "desc" },
     }),
     prisma.inventoryItem.count({

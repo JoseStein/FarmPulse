@@ -148,6 +148,11 @@ export const expenseSchema = z.object({
   idempotencyKey: idempotencySchema,
 });
 
+export const budgetSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  plannedAmount: z.coerce.number().positive().max(1_000_000_000),
+});
+
 export const fieldNoteSchema = z.object({
   sectorId: idSchema.optional().or(z.literal("")),
   category: z.string().trim().min(2).max(80),

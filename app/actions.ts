@@ -13,6 +13,7 @@ import {
 import { combineFarmDateTime } from "@/lib/data/dates";
 import {
   activitySchema,
+  budgetSchema,
   cropCycleSchema,
   equipmentSchema,
   expenseSchema,
@@ -611,6 +612,60 @@ export async function deleteExpenseAction(expenseId: string): Promise<ActionResu
     ]);
     refreshOperationalPages();
     return { ok: true, data: { id } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function saveBudgetAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const data = budgetSchema.parse(input);
+    const context = await requireActiveCycle();
+    requireRole(context.role, ["ADMIN"]);
+    const existing = await prisma.budget.findFirst({
+      where: { farmId: context.farm.id, cropCycleId: context.cycle.id },
+      orderBy: { createdAt: "desc" },
+    });
+    const budget = await prisma.$transaction(async (tx) => {
+      const saved = existing
+        ? await tx.budget.update({
+            where: { id: existing.id },
+            data: {
+              name: data.name,
+              plannedAmount: new Prisma.Decimal(data.plannedAmount.toFixed(2)),
+              currency: context.farm.currency,
+            },
+          })
+        : await tx.budget.create({
+            data: {
+              farmId: context.farm.id,
+              cropCycleId: context.cycle.id,
+              name: data.name,
+              plannedAmount: new Prisma.Decimal(data.plannedAmount.toFixed(2)),
+              currency: context.farm.currency,
+            },
+          });
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: context.user.id,
+          action: existing ? "UPDATE" : "CREATE",
+          entityType: "Budget",
+          entityId: saved.id,
+          metadata: {
+            cropCycleId: context.cycle.id,
+            fieldId: context.field.id,
+            plannedAmount: data.plannedAmount,
+            currency: context.farm.currency,
+          },
+        },
+      });
+      return saved;
+    });
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true, data: { id: budget.id } };
   } catch (error) {
     return failure(error);
   }
