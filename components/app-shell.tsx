@@ -1,18 +1,18 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Map, ListChecks, Droplets, ClipboardPlus, Wheat, CloudSun, CircleDollarSign, Package, Tractor, NotebookPen, BookOpen, BarChart3, Settings, Bell, Menu, Plus, X, Camera, Bug, Leaf, LogOut, UserRound } from "lucide-react";
+import { LayoutDashboard, Map, ListChecks, Droplets, ClipboardPlus, Wheat, CloudSun, CircleDollarSign, Package, Tractor, NotebookPen, BookOpen, BarChart3, Settings, Bell, Menu, Plus, X, Camera, Bug, Leaf, LogOut, UserRound, Sprout } from "lucide-react";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import {logoutAction} from "@/app/auth-actions";
 
 const nav = [
-  ["Dashboard","/dashboard",LayoutDashboard],["Farm Map","/map",Map],["Tasks","/tasks",ListChecks],["Irrigation","/irrigation",Droplets],["Activities","/activities",ClipboardPlus],["Crop Cycle","/crop-cycle",Wheat],["Weather","/weather",CloudSun],["Expenses","/expenses",CircleDollarSign],["Inventory","/inventory",Package],["Equipment","/equipment",Tractor],["Field Journal","/journal",NotebookPen],["Crop Guide","/guide",BookOpen],["Reports","/reports",BarChart3],["Settings","/settings",Settings],["My Account","/account",UserRound]
+  ["Dashboard","/dashboard",LayoutDashboard],["Farm Map","/map",Map],["Prepare Land","/prepare",Sprout],["Tasks","/tasks",ListChecks],["Irrigation","/irrigation",Droplets],["Activities","/activities",ClipboardPlus],["Crop Cycle","/crop-cycle",Wheat],["Weather","/weather",CloudSun],["Expenses","/expenses",CircleDollarSign],["Inventory","/inventory",Package],["Equipment","/equipment",Tractor],["Field Journal","/journal",NotebookPen],["Crop Guide","/guide",BookOpen],["Reports","/reports",BarChart3],["Settings","/settings",Settings],["My Account","/account",UserRound]
 ] as const;
 const mobile = [["Home","/dashboard",LayoutDashboard],["Map","/map",Map],["Tasks","/tasks",ListChecks],["More","/settings",Menu]] as const;
 type ShellData={user:{id:string;name:string;email:string;role:"ADMIN"|"OPERATOR"};farm:{id:string;name:string};field:{id:string;name:string};crop:string;taskCount:number;notificationCount:number};
-const operatorRoutes=new Set(["/dashboard","/map","/tasks","/irrigation","/activities","/weather","/journal","/guide","/account"]);
+const operatorRoutes=new Set(["/dashboard","/map","/prepare","/tasks","/irrigation","/activities","/weather","/journal","/guide","/account"]);
 export function AppShell({ children,data }: {children:React.ReactNode;data:ShellData}) {
   const path=usePathname(); const [sheet,setSheet]=useState(false);
   const visibleNav=data.user.role==="ADMIN"?nav:nav.filter(([,href])=>operatorRoutes.has(href));

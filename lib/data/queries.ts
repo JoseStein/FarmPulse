@@ -6,6 +6,7 @@ import { requireActiveCycle, requireActiveField, requireFarmContext } from "./co
 import { irrigationRecommendation } from "@/lib/utils";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { formatInTimeZone } from "date-fns-tz";
+import type { WeatherResult } from "@/lib/weather";
 
 const taskSelect = {
   id: true,
@@ -101,6 +102,228 @@ export async function getCropCyclePageData() {
     timezone: context.farm.timezone,
     now: new Date().toISOString(),
     field: { ...context.field, areaHa: decimal(context.field.areaHa)! },
+  };
+}
+
+export type PreparationCheckStatus = "VERIFIED" | "PLANNED" | "NEEDS_ATTENTION" | "NOT_ASSESSED";
+
+export async function getLandPreparationData(weather: WeatherResult) {
+  const context = await requireActiveCycle();
+  const [sectors, tasks, activities, inventory, equipment, irrigationDesign, notes] = await Promise.all([
+    prisma.sector.findMany({
+      where: { fieldId: context.field.id },
+      select: { id: true, name: true, dripLines: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.task.findMany({
+      where: { cropCycleId: context.cycle.id },
+      select: { id: true, name: true, category: true, status: true, dueAt: true },
+      orderBy: { dueAt: "asc" },
+    }),
+    prisma.activity.findMany({
+      where: { cropCycleId: context.cycle.id },
+      select: { type: true, productUsed: true, notes: true, occurredAt: true },
+      orderBy: { occurredAt: "desc" },
+    }),
+    prisma.inventoryItem.findMany({
+      where: { farmId: context.farm.id, deletedAt: null },
+      select: { name: true, category: true, quantityOnHand: true, unit: true },
+    }),
+    prisma.equipment.findMany({
+      where: { farmId: context.farm.id },
+      select: { name: true, type: true, status: true },
+    }),
+    prisma.appSetting.findUnique({
+      where: { farmId_key: { farmId: context.farm.id, key: "irrigation_design" } },
+      select: { value: true },
+    }),
+    prisma.fieldNote.findMany({
+      where: { fieldId: context.field.id, deletedAt: null },
+      select: { category: true, body: true },
+    }),
+  ]);
+
+  const completedTasks = tasks.filter((task) => task.status === "COMPLETED");
+  const evidenceText = [
+    ...completedTasks.flatMap((task) => [task.name, task.category]),
+    ...activities.flatMap((activity) => [activity.productUsed ?? "", activity.notes ?? ""]),
+    ...notes.flatMap((note) => [note.category, note.body]),
+  ].join(" ").toLowerCase();
+  const hasEvidence = (...terms: string[]) => terms.some((term) => evidenceText.includes(term));
+  const hasSoilWork = activities.some((activity) => activity.type === "SOIL_WORK") || hasEvidence("land preparation", "soil work", "tillage");
+  const hasDrainageEvidence = hasEvidence("drainage", "drain", "waterlogging");
+  const irrigationConfigured = Boolean(irrigationDesign) || sectors.some((sector) => sector.dripLines > 0);
+  const irrigationTested = activities.some((activity) => activity.type === "IRRIGATION");
+  const cropName = context.cycle.crop.name.toLowerCase();
+  const plantingMaterial = inventory.find((item) => {
+    const haystack = `${item.name} ${item.category}`.toLowerCase();
+    return Number(item.quantityOnHand) > 0 &&
+      (haystack.includes("seed") || haystack.includes("seedling") || haystack.includes(cropName));
+  });
+  const usableEquipment = equipment.filter((item) =>
+    ["available", "ready", "active", "healthy", "operational"].some((status) =>
+      item.status.toLowerCase().includes(status),
+    ),
+  );
+  const forecastAvailable = weather.daily.length > 0;
+  const forecastRain3d = weather.daily.slice(0, 3).reduce((sum, day) => sum + day.precipitationMm, 0);
+  const heavyRainDay = weather.daily.slice(0, 3).some((day) => day.precipitationMm >= 25);
+
+  const checks: Array<{
+    id: string;
+    name: string;
+    status: PreparationCheckStatus;
+    detail: string;
+    source: string;
+  }> = [
+    {
+      id: "field",
+      name: "Field structure",
+      status: Number(context.field.areaHa) > 0 && sectors.length > 0 ? "VERIFIED" : "NEEDS_ATTENTION",
+      detail: `${Number(context.field.areaHa).toFixed(2)} ha and ${sectors.length} sector${sectors.length === 1 ? "" : "s"} configured.`,
+      source: "FarmPulse field records",
+    },
+    {
+      id: "crop",
+      name: "Planning crop",
+      status: "VERIFIED",
+      detail: `${context.cycle.crop.name} is selected for the active planning cycle${context.cycle.variety ? ` (${context.cycle.variety})` : "; variety is not yet known"}.`,
+      source: "Active crop cycle",
+    },
+    {
+      id: "soil",
+      name: "Soil baseline and laboratory test",
+      status: "NOT_ASSESSED",
+      detail: "No soil measurements are claimed yet. Sampling should happen before amendment decisions.",
+      source: "No structured result recorded",
+    },
+    {
+      id: "water",
+      name: "Water source and irrigation capacity",
+      status: irrigationTested ? "VERIFIED" : irrigationConfigured ? "PLANNED" : "NOT_ASSESSED",
+      detail: irrigationTested
+        ? "An irrigation event provides operational evidence."
+        : irrigationConfigured
+          ? "Irrigation design information exists, but a physical capacity test is not recorded."
+          : "Water-source capacity and irrigation infrastructure have not been assessed.",
+      source: irrigationTested ? "Activity history" : irrigationConfigured ? "Irrigation configuration" : "No field evidence recorded",
+    },
+    {
+      id: "drainage",
+      name: "Drainage and access inspection",
+      status: hasDrainageEvidence ? "VERIFIED" : "NOT_ASSESSED",
+      detail: hasDrainageEvidence
+        ? "A completed record mentions drainage, access, or waterlogging conditions."
+        : "Physical drainage and wet-weather access conditions are still unknown.",
+      source: hasDrainageEvidence ? "Completed work and field notes" : "No field evidence recorded",
+    },
+    {
+      id: "land-work",
+      name: "Land preparation",
+      status: hasSoilWork ? "VERIFIED" : "NOT_ASSESSED",
+      detail: hasSoilWork ? "Completed soil or land-preparation work is recorded." : "No completed land-preparation activity is recorded.",
+      source: hasSoilWork ? "Activity and task history" : "No completed work recorded",
+    },
+    {
+      id: "equipment",
+      name: "Required equipment",
+      status: usableEquipment.length > 0 ? "PLANNED" : "NOT_ASSESSED",
+      detail: usableEquipment.length > 0
+        ? `${usableEquipment.length} equipment record${usableEquipment.length === 1 ? " is" : "s are"} marked operational; suitability still needs field confirmation.`
+        : "No available equipment is recorded yet.",
+      source: equipment.length > 0 ? "Equipment register" : "No equipment records",
+    },
+    {
+      id: "materials",
+      name: "Seed or planting material",
+      status: plantingMaterial ? "PLANNED" : "NOT_ASSESSED",
+      detail: plantingMaterial
+        ? `${plantingMaterial.name} is recorded with ${Number(plantingMaterial.quantityOnHand)} ${plantingMaterial.unit} on hand.`
+        : `No available ${context.cycle.crop.name} seed or planting material is recorded. This does not mean it has been purchased or is missing.`,
+      source: plantingMaterial ? "Inventory" : "No matching inventory record",
+    },
+    {
+      id: "schedule",
+      name: "Planting date and work window",
+      status: context.cycle.plannedPlantingDate ? "PLANNED" : "NOT_ASSESSED",
+      detail: context.cycle.plannedPlantingDate
+        ? `A target date of ${formatInTimeZone(context.cycle.plannedPlantingDate, context.farm.timezone, "MMM d, yyyy")} is recorded.`
+        : "A planting date should remain unset until field readiness and material availability are confirmed.",
+      source: context.cycle.plannedPlantingDate ? "Active crop cycle" : "No date recorded",
+    },
+    {
+      id: "weather",
+      name: "Near-term weather window",
+      status: !forecastAvailable ? "NOT_ASSESSED" : heavyRainDay || forecastRain3d >= 40 ? "NEEDS_ATTENTION" : "VERIFIED",
+      detail: !forecastAvailable
+        ? "A multi-day forecast is not currently available."
+        : `${forecastRain3d.toFixed(1)} mm total rain is forecast over the next three days${heavyRainDay ? ", including at least one heavy-rain day" : ""}.`,
+      source: weather.stale ? "Saved weather forecast" : "Live weather forecast",
+    },
+  ];
+
+  const knownCount = checks.filter((check) => check.status !== "NOT_ASSESSED").length;
+  const verifiedCount = checks.filter((check) => check.status === "VERIFIED").length;
+  const attentionCount = checks.filter((check) => check.status === "NEEDS_ATTENTION").length;
+  const generatedTasks = tasks.filter((task) => task.name.startsWith("[Land setup]"));
+  const recommendations = [
+    ...weather.notices.map((notice) => ({
+      id: `weather-${notice.title}`,
+      priority: notice.severity,
+      title: notice.title,
+      reason: notice.message,
+      evidence: weather.stale ? "Saved forecast" : "Live forecast",
+    })),
+    ...(!hasDrainageEvidence
+      ? [{ id: "inspect-drainage", priority: "HIGH" as const, title: "Inspect drainage before committing to a planting date", reason: "The land is new and no physical drainage or access assessment is recorded.", evidence: "Missing field evidence" }]
+      : []),
+    {
+      id: "soil-baseline",
+      priority: "HIGH" as const,
+      title: "Collect a soil baseline before choosing amendments",
+      reason: "There are no laboratory measurements yet, so FarmPulse will not guess fertilizer or lime requirements.",
+      evidence: "No soil result recorded",
+    },
+    ...(!plantingMaterial
+      ? [{ id: "confirm-material", priority: "MEDIUM" as const, title: `Confirm ${context.cycle.crop.name} planting-material requirements`, reason: "Quantity cannot be calculated safely until variety, spacing, and planting method are confirmed.", evidence: "Crop plan is incomplete" }]
+      : []),
+  ];
+
+  return {
+    role: context.role,
+    farm: { name: context.farm.name, locationName: context.farm.locationName, timezone: context.farm.timezone },
+    field: { id: context.field.id, name: context.field.name, areaHa: decimal(context.field.areaHa)! },
+    cycle: {
+      id: context.cycle.id,
+      crop: context.cycle.crop.name,
+      variety: context.cycle.variety,
+      stage: context.cycle.growthStage?.name ?? "Not set",
+      plannedPlantingDate: iso(context.cycle.plannedPlantingDate),
+      actualPlantingDate: iso(context.cycle.actualPlantingDate),
+      populationTarget: context.cycle.populationTarget,
+      seedQuantityKg: decimal(context.cycle.seedQuantityKg),
+    },
+    checks,
+    summary: {
+      total: checks.length,
+      knownCount,
+      verifiedCount,
+      attentionCount,
+      unknownCount: checks.length - knownCount,
+      evidenceCoverage: Math.round((knownCount / checks.length) * 100),
+    },
+    recommendations,
+    generatedTasks: generatedTasks.map((task) => ({
+      ...task,
+      dueAt: iso(task.dueAt)!,
+    })),
+    weather: {
+      source: weather.source,
+      stale: weather.stale,
+      updatedAt: weather.updatedAt,
+      forecastRain3d,
+      available: forecastAvailable,
+    },
   };
 }
 

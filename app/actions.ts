@@ -32,6 +32,8 @@ import { Prisma, type ActivityType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { addDays } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 export type ActionResult<T = undefined> =
   { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string[]> };
@@ -71,8 +73,106 @@ function refreshOperationalPages() {
     "/expenses",
     "/journal",
     "/reports",
+    "/prepare",
   ])
     revalidatePath(path);
+}
+
+export async function createLandPreparationTasksAction(): Promise<ActionResult<{ createdCount: number }>> {
+  try {
+    const context = await requireActiveCycle();
+    requireRole(context.role, ["ADMIN"]);
+    const templates = [
+      {
+        name: "[Land setup] Walk the field and document current conditions",
+        description: "Inspect boundaries, access, slope, visible wet areas, existing vegetation, and infrastructure. Record findings in the field journal; do not estimate measurements that are unknown.",
+        category: "Land assessment",
+        priority: "HIGH" as const,
+        offsetDays: 1,
+      },
+      {
+        name: "[Land setup] Inspect drainage and wet-weather access",
+        description: "Walk the field after rain if safe. Identify standing water, runoff paths, erosion, blocked outlets, and access limitations.",
+        category: "Drainage",
+        priority: "HIGH" as const,
+        offsetDays: 2,
+      },
+      {
+        name: "[Land setup] Plan representative soil sampling",
+        description: "Choose representative sampling locations and arrange a laboratory test before making fertilizer or lime decisions.",
+        category: "Soil testing",
+        priority: "HIGH" as const,
+        offsetDays: 3,
+      },
+      {
+        name: "[Land setup] Assess the water source and irrigation capacity",
+        description: "Confirm the physical water source, seasonal reliability, pump condition, flow, pressure, filtration, and coverage. Record measured values only.",
+        category: "Irrigation setup",
+        priority: "HIGH" as const,
+        offsetDays: 4,
+      },
+      {
+        name: "[Land setup] Confirm crop variety and planting method",
+        description: `Confirm the ${context.cycle.crop.name} variety, seed or planting-material format, row spacing, plant spacing, and supplier before calculating quantities.`,
+        category: "Crop planning",
+        priority: "MEDIUM" as const,
+        offsetDays: 5,
+      },
+      {
+        name: "[Land setup] Identify required equipment and services",
+        description: "List owned, rented, or contracted equipment needed for clearing, soil preparation, transport, irrigation, and planting.",
+        category: "Equipment planning",
+        priority: "MEDIUM" as const,
+        offsetDays: 6,
+      },
+      {
+        name: "[Land setup] Review readiness before setting the planting date",
+        description: "Review soil results, drainage, water capacity, land preparation, planting-material availability, labor, equipment, and the weather window. Set a planting date only when the evidence supports it.",
+        category: "Readiness review",
+        priority: "HIGH" as const,
+        offsetDays: 10,
+      },
+    ];
+    const existing = await prisma.task.findMany({
+      where: { cropCycleId: context.cycle.id, name: { in: templates.map((template) => template.name) } },
+      select: { name: true },
+    });
+    const existingNames = new Set(existing.map((task) => task.name));
+    const missing = templates.filter((template) => !existingNames.has(template.name));
+    if (missing.length === 0) return { ok: true, data: { createdCount: 0 } };
+    await prisma.$transaction(async (tx) => {
+      const createdIds: string[] = [];
+      for (const template of missing) {
+        const dueDate = formatInTimeZone(addDays(new Date(), template.offsetDays), context.farm.timezone, "yyyy-MM-dd");
+        const task = await tx.task.create({
+          data: {
+            fieldId: context.field.id,
+            cropCycleId: context.cycle.id,
+            name: template.name,
+            description: template.description,
+            category: template.category,
+            priority: template.priority,
+            dueAt: combineFarmDateTime(dueDate, "08:00", context.farm.timezone),
+          },
+        });
+        createdIds.push(task.id);
+      }
+      await tx.auditLog.create({
+        data: {
+          farmId: context.farm.id,
+          userId: context.user.id,
+          action: "GENERATE_LAND_PREPARATION_TASKS",
+          entityType: "CropCycle",
+          entityId: context.cycle.id,
+          metadata: { createdCount: createdIds.length, taskIds: createdIds },
+        },
+      });
+    });
+    refreshOperationalPages();
+    return { ok: true, data: { createdCount: missing.length } };
+  } catch (error) {
+    return failure(error);
+  }
 }
 
 export async function updateTaskStatusAction(

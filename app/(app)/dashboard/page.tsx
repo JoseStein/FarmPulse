@@ -29,7 +29,7 @@ const quick = [
   ["Record expense", CircleDollarSign, "/expenses?new=1"],
   ["Record fertilizer", Leaf, "/activities?type=fertilizer"],
   ["Pest inspection", Bug, "/activities?type=pest"],
-  ["Upload photo", Plus, "/journal?new=1"],
+  ["Prepare land", Sprout, "/prepare"],
   ["Report issue", AlertTriangle, "/journal?issue=1"],
 ] as const;
 
