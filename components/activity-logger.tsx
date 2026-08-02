@@ -37,6 +37,7 @@ type Data = {
   today: string;
   currentTime: string;
   sectors: Array<{ id: string; name: string; flowM3h: number | null }>;
+  selectedSectorId?: string;
   inventory: Array<{ id: string; name: string; quantityOnHand: number; unit: string }>;
   activities: ActivityRow[];
 };
@@ -240,7 +241,11 @@ export function ActivityLogger({
     initialMap[initialType ?? ""] ?? (activityValues.has(initialType ?? "") ? initialType : "IRRIGATION");
   const [type, setType] = useState(initial);
   const [sectorId, setSectorId] = useState(
-    data.sectors.some((s) => s.id === initialSector) ? initialSector! : (data.sectors[0]?.id ?? ""),
+    data.sectors.some((s) => s.id === initialSector)
+      ? initialSector!
+      : data.sectors.some((s) => s.id === data.selectedSectorId)
+        ? data.selectedSectorId!
+        : "",
   );
   const [duration, setDuration] = useState(60);
   const [inventoryId, setInventoryId] = useState("");

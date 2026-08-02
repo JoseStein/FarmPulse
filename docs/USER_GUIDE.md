@@ -23,15 +23,18 @@ Accounts should not be shared. Every saved record identifies the person who crea
 
 Permissions are enforced by the server. Opening an administrator-only address directly as an operator redirects back to the dashboard.
 
-### Select the active production lot
+### Choose the working sector
 
-When the farm contains more than one field or production lot, a selector appears in the top header. On a phone it appears as a compact selector beside the FarmPulse logo.
+The working sector is the part of the current production area where the team is performing work. FarmPulse displays it in the top header so it is visible from every screen.
 
-1. Open the lot selector.
-2. Choose the field or lot you want to work with.
-3. Wait for the screen to refresh.
+1. Open **Farm Map** or select the working-sector name in the header.
+2. Select a sector directly on the map.
+3. Confirm that the details panel labels it **Working sector**.
+4. The header updates to `Working sector: [sector name]`.
 
-The selected lot becomes the context for the Dashboard, Farm Map, Tasks, Irrigation, Activities, Crop Cycle, Expenses, Field Journal, Crop Guide, and other field-scoped records. Always check the selected lot before saving work.
+FarmPulse remembers this choice for the signed-in browser and prefills it in Activities, new Tasks, Field Journal notes/issues, and new Expenses. You can still deliberately choose **All sectors** or a different sector in a form when the record is broader than the current work area. Dashboard totals and alerts continue to cover the current production area so important information is not hidden.
+
+The current farm has one active production area, so FarmPulse does not show the redundant `Field 1 · Corn` label. If multiple production areas are configured later, a separate production-area selector appears in the header.
 
 The crop names shown on the original May 2024 land drawing—Corn and Melon—are examples only. They do not permanently assign a crop to a lot. An administrator chooses the planned crop in **Crop Cycle**, or the person logging planting chooses the crop in **Activities**.
 
@@ -58,7 +61,7 @@ The bell in the header indicates unread notifications when a count is available.
 
 **Who can use it:** Administrators and operators.
 
-The Dashboard is the daily overview for the selected lot. It brings together current database records and the latest available weather snapshot.
+The Dashboard is the daily overview for the current production area. It brings together current database records and the latest available weather snapshot.
 
 It shows:
 
@@ -77,7 +80,7 @@ If the crop has not been planted, the dashboard correctly shows **Not planted ye
 
 **Who can use it:** Administrators and operators.
 
-The Farm Map visualizes the sectors configured for the selected lot. Select a sector on the diagram to update the details panel.
+The Farm Map visualizes the configured sectors and controls the working-sector selection used across FarmPulse. Select a sector on the diagram to update the details panel and save it as the working sector.
 
 For each sector, the map can show:
 
@@ -137,11 +140,11 @@ This blade is for reference and verification; it does not itself assign crops or
 
 **Who can use it:** Administrators and operators.
 
-Tasks organizes scheduled work for the selected lot. Views include **Today**, **Week**, **All tasks**, and **By sector**.
+Tasks organizes scheduled work for the current production area. Views include **Today**, **Week**, **All tasks**, and **By sector**.
 
 ### Create a task
 
-Only administrators can create tasks. Operators can review, start, complete, or skip the work assigned to the selected lot.
+Only administrators can create tasks. Operators can review, start, complete, or skip assigned work. New tasks default to the working sector selected on Farm Map.
 
 1. Select **New task**.
 2. Enter a task name.
@@ -222,13 +225,13 @@ An activity cost is stored with that activity; the dedicated Expenses blade rema
 
 ### Planting and crop flexibility
 
-When logging planting, choose any existing crop or select **Add another crop** and enter a new crop name. Saving planting changes the active crop for the selected lot, records its variety when supplied, assigns the Planting stage, and sets the actual planting date. This is why the selected lot must be checked before saving.
+When logging planting, choose any existing crop or select **Add another crop** and enter a new crop name. Saving planting changes the active crop for the current production area, records its variety when supplied, assigns the Planting stage, and sets the actual planting date.
 
 ## 9. Crop Cycle blade
 
 **Who can use it:** Administrators only.
 
-Crop Cycle is the formal production plan and outcome record for the selected lot. It shows the current stage, crop age, planting and harvest dates, population target, expected yield, actual yield, and the ordered growth stages.
+Crop Cycle is the formal production plan and outcome record for the current production area. It shows the current stage, crop age, planting and harvest dates, population target, expected yield, actual yield, and the ordered growth stages.
 
 Select **Update crop cycle** to change:
 
@@ -262,11 +265,11 @@ Use **Refresh live** to request current conditions. The screen also checks autom
 
 **Who can use it:** Administrators only.
 
-Expenses & Budget tracks actual costs for the selected lot and compares them with the planned budget for that lot's active crop cycle. Summary cards show actual cost, planned budget, remaining budget, percentage used, and cost per hectare and acre.
+Expenses & Budget tracks actual costs for the current production area and compares them with its active crop-cycle budget. Summary cards show actual cost, planned budget, remaining budget, percentage used, and cost per hectare and acre. New expenses default to the working sector.
 
 ### Set or edit the budget
 
-1. Confirm the selected production lot in the header.
+1. Confirm the current production area and working sector in the header.
 2. Select the pencil button on the **Planned budget** card.
 3. Enter a recognizable budget name and the planned amount in the farm currency.
 4. Select **Save budget**.
@@ -326,7 +329,7 @@ Saving updates the equipment history and also creates the related maintenance ac
 
 **Who can use it:** Administrators and operators.
 
-The Field Journal stores narrative observations, photographs, and trackable issues for the selected lot.
+The Field Journal stores narrative observations, photographs, and trackable issues. New records default to the working sector.
 
 ### Add a field note
 
@@ -354,7 +357,7 @@ Production photo uploads require the configured private object-storage service. 
 
 **Who can use it:** Administrators and operators.
 
-Crop Guide presents curated educational articles ranked for the selected lot’s crop, current growth stage, open issues, tasks, irrigation history, and saved weather context.
+Crop Guide presents curated educational articles ranked for the current crop, growth stage, open issues, tasks, irrigation history, and saved weather context.
 
 Use the search box or category list to filter articles. Select **Read guidance** to open the complete article, region applicability, source, and review date.
 
@@ -432,7 +435,7 @@ After a successful change, FarmPulse signs the user out. Sign in again with the 
 
 ### On planting day
 
-1. Confirm the selected lot in the header.
+1. Confirm the working sector in the header and change it on Farm Map if needed.
 2. Open Activities and choose Planting.
 3. Select or create the actual crop, enter variety and planting-material details, and save.
 4. Confirm the Dashboard and Crop Cycle now show the correct crop, Planting stage, and actual planting date.
@@ -456,7 +459,7 @@ After a successful change, FarmPulse signs the user out. Sign in again with the 
 
 ## 20. Data and safety reminders
 
-- Always confirm the selected lot before saving a record.
+- Always confirm the working sector in the header before saving sector-specific work.
 - Do not enter estimates as measurements without saying so in the notes.
 - A design value is not proof that infrastructure is installed or working.
 - Do not enter an actual planting date before planting occurs; it enables crop-age and irrigation logic.

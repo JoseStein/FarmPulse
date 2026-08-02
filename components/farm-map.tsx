@@ -1,7 +1,9 @@
 "use client";
+import { selectSectorAction } from "@/app/actions";
 import { AlertTriangle, Droplets } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 type Sector = {
   id: string;
@@ -31,9 +33,23 @@ const palette: Record<string, { fill: string; stroke: string }> = {
   "Planned — not field verified": { fill: "#eef2f7", stroke: "#64748b" },
 };
 
-export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: string; timezone: string }) {
-  const [selected, setSelected] = useState(0);
+export function FarmMap({ sectors, crop, timezone, selectedSectorId }: { sectors: Sector[]; crop: string; timezone: string; selectedSectorId?: string }) {
+  const initialIndex = Math.max(0, sectors.findIndex((sector) => sector.id === selectedSectorId));
+  const [selected, setSelected] = useState(initialIndex);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const router = useRouter();
   const s = sectors[selected];
+  const savedSelection = s?.id === selectedSectorId;
+  function chooseSector(index: number) {
+    setSelected(index);
+    setError("");
+    startTransition(async () => {
+      const result = await selectSectorAction(sectors[index].id);
+      if (!result.ok) setError(result.error);
+      else router.refresh();
+    });
+  }
   if (!s) return <div className="card p-8 text-center">No sectors are configured.</div>;
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_330px]">
@@ -70,11 +86,11 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
               return (
                 <g
                   key={sector.id}
-                  onClick={() => setSelected(i)}
+                  onClick={() => chooseSector(i)}
                   className="cursor-pointer"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setSelected(i)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && chooseSector(i)}
                 >
                   <rect
                     x={x}
@@ -152,12 +168,13 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
       <aside className="card p-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-farm-600">Selected sector</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-farm-600">{savedSelection || pending ? "Working sector" : "Sector preview"}</p>
             <h2 className="mt-1 text-xl font-bold">{s.name}</h2>
             <p className="text-sm text-slate-500">
               {crop} · {s.dripLines} drip lines
             </p>
           </div>
+          <span className="rounded-full bg-farm-50 px-2.5 py-1 text-xs font-bold text-farm-700">{pending ? "Saving…" : savedSelection ? "Selected" : "Select on map"}</span>
           {s.alerts > 0 && (
             <span className="grid size-9 place-items-center rounded-full bg-amber-50 text-amber-700">
               <AlertTriangle size={18} />
@@ -165,6 +182,7 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
           )}
         </div>
         <div className="my-5 h-px bg-slate-100" />
+        {error && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <dl className="space-y-4 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-slate-500">Status</dt>

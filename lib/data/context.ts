@@ -5,6 +5,7 @@ import type {Role} from "@prisma/client";
 import { cookies } from "next/headers";
 
 export const SELECTED_FIELD_COOKIE = "farmpulse_selected_field";
+export const SELECTED_SECTOR_COOKIE = "farmpulse_selected_sector";
 
 export class SafeActionError extends Error {
   constructor(public code: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION", message: string) {
@@ -85,6 +86,20 @@ export async function verifySector(fieldId: string, sectorId?: string | null) {
   const sector = await prisma.sector.findFirst({where: {id: sectorId, fieldId}, select: {id: true, name: true, dripLines: true}});
   if (!sector) throw new SafeActionError("NOT_FOUND", "The selected sector does not belong to this field.");
   return sector;
+}
+
+export async function getSelectedSector(fieldId: string) {
+  let selectedSectorId: string | null = null;
+  try {
+    selectedSectorId = (await cookies()).get(SELECTED_SECTOR_COOKIE)?.value ?? null;
+  } catch {
+    // Requests without cookie access (for example integration tests) have no working-sector preference.
+  }
+  if (!selectedSectorId) return null;
+  return prisma.sector.findFirst({
+    where: { id: selectedSectorId, fieldId },
+    select: { id: true, name: true },
+  });
 }
 
 export function requireRole(role: Role, allowed: Role[]) {

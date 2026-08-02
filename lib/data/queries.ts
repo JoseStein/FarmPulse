@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { decimal, iso } from "./serialize";
 import { farmDayBounds, farmWeekBounds, nextFarmDays } from "./dates";
-import { requireActiveCycle, requireActiveField, requireFarmContext } from "./context";
+import { getSelectedSector, requireActiveCycle, requireActiveField, requireFarmContext } from "./context";
 import { irrigationRecommendation } from "@/lib/utils";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { formatInTimeZone } from "date-fns-tz";
@@ -57,7 +57,7 @@ export async function getActiveField() {
 }
 export async function getShellData() {
   const context = await requireActiveCycle();
-  const [taskCount, notificationCount, fields] = await Promise.all([
+  const [taskCount, notificationCount, fields, selectedSector] = await Promise.all([
     prisma.task.count({ where: { fieldId: context.field.id, status: { notIn: ["COMPLETED", "SKIPPED"] } } }),
     prisma.notification.count({ where: { userId: context.user.id, readAt: null } }),
     prisma.field.findMany({
@@ -74,6 +74,7 @@ export async function getShellData() {
       },
       orderBy: { name: "asc" },
     }),
+    getSelectedSector(context.field.id),
   ]);
   return {
     user: { ...context.user, role: context.role },
@@ -85,6 +86,7 @@ export async function getShellData() {
       crop: field.cycles[0]?.crop.name ?? "No active crop",
     })),
     crop: context.cycle.crop.name,
+    selectedSector,
     taskCount,
     notificationCount,
   };
@@ -450,7 +452,7 @@ export async function getTaskPageData(
   sectorId?: string,
 ) {
   const context = await requireActiveField();
-  const [tasks, sectors, members] = await Promise.all([
+  const [tasks, sectors, members, selectedSector] = await Promise.all([
     getTasks(view, sectorId),
     prisma.sector.findMany({
       where: { fieldId: context.field.id },
@@ -462,6 +464,7 @@ export async function getTaskPageData(
       select: { user: { select: { id: true, name: true } } },
       orderBy: { user: { name: "asc" } },
     }),
+    getSelectedSector(context.field.id),
   ]);
   return {
     tasks,
@@ -470,6 +473,7 @@ export async function getTaskPageData(
     role: context.role,
     timezone: context.farm.timezone,
     tomorrowDate: formatInTimeZone(new Date(Date.now() + 864e5), context.farm.timezone, "yyyy-MM-dd"),
+    selectedSectorId: selectedSector?.id,
   };
 }
 
@@ -511,7 +515,7 @@ export async function getActivities(limit = 30, sectorId?: string) {
 
 export async function getActivityPageData() {
   const context = await requireActiveCycle();
-  const [sectors, activities, design, inventory, crops] = await Promise.all([
+  const [sectors, activities, design, inventory, crops, selectedSector] = await Promise.all([
     prisma.sector.findMany({
       where: { fieldId: context.field.id },
       select: { id: true, name: true },
@@ -531,6 +535,7 @@ export async function getActivityPageData() {
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    getSelectedSector(context.field.id),
   ]);
   const configuredFlow = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h);
   const flowM3h = Number.isFinite(configuredFlow) && configuredFlow > 0 ? configuredFlow : null;
@@ -544,6 +549,7 @@ export async function getActivityPageData() {
     today: formatInTimeZone(new Date(), context.farm.timezone, "yyyy-MM-dd"),
     currentTime: formatInTimeZone(new Date(), context.farm.timezone, "HH:mm"),
     sectors: sectors.map((s) => ({ ...s, flowM3h })),
+    selectedSectorId: selectedSector?.id,
     inventory: inventory.map((i) => ({ ...i, quantityOnHand: decimal(i.quantityOnHand)! })),
     activities,
   };
@@ -647,7 +653,7 @@ export async function getExpensePageData(filters?: {
   to?: Date;
 }) {
   const context = await requireActiveField();
-  const [expenseData, sectors, categories] = await Promise.all([
+  const [expenseData, sectors, categories, selectedSector] = await Promise.all([
     getExpenseData(filters),
     prisma.sector.findMany({
       where: { fieldId: context.field.id },
@@ -660,8 +666,9 @@ export async function getExpensePageData(filters?: {
       select: { category: true },
       orderBy: { category: "asc" },
     }),
+    getSelectedSector(context.field.id),
   ]);
-  return { ...expenseData, sectors, categories: categories.map((c) => c.category) };
+  return { ...expenseData, sectors, categories: categories.map((c) => c.category), selectedSectorId: selectedSector?.id };
 }
 
 export async function getInventory() {
@@ -769,7 +776,7 @@ export async function getFieldJournal(limit = 50, sectorId?: string) {
 
 export async function getJournalPageData() {
   const context = await requireActiveCycle();
-  const [journal, sectors, members] = await Promise.all([
+  const [journal, sectors, members, selectedSector] = await Promise.all([
     getFieldJournal(100),
     prisma.sector.findMany({
       where: { fieldId: context.field.id },
@@ -781,8 +788,9 @@ export async function getJournalPageData() {
       select: { user: { select: { id: true, name: true } } },
       orderBy: { user: { name: "asc" } },
     }),
+    getSelectedSector(context.field.id),
   ]);
-  return { ...journal, sectors, members: members.map((m) => m.user), timezone: context.farm.timezone };
+  return { ...journal, sectors, members: members.map((m) => m.user), timezone: context.farm.timezone, selectedSectorId: selectedSector?.id };
 }
 
 export async function getWeatherSnapshots(limit = 20) {
@@ -829,7 +837,7 @@ export async function getSectorSummaries() {
   const { farm, field, cycle, user, role } = await requireActiveCycle();
   const cycleStart = cycle.actualPlantingDate ?? cycle.createdAt;
   const irrigationEnabled = Boolean(cycle.actualPlantingDate);
-  const [setting, sectors, totals, weather] = await Promise.all([
+  const [setting, sectors, totals, weather, selectedSector] = await Promise.all([
     prisma.appSetting.findUnique({ where: { farmId_key: { farmId: farm.id, key: "irrigation_design" } } }),
     prisma.sector.findMany({
       where: { fieldId: field.id },
@@ -848,6 +856,7 @@ export async function getSectorSummaries() {
       _count: { _all: true },
     }),
     prisma.weatherSnapshot.findFirst({ where: { farmId: farm.id }, orderBy: { observedAt: "desc" } }),
+    getSelectedSector(field.id),
   ]);
   const design = (setting?.value ?? {}) as Record<string, unknown>;
   const forecastRain = Number((weather?.payload as Record<string, unknown> | null)?.forecastRain24Mm ?? 0);
@@ -858,6 +867,7 @@ export async function getSectorSummaries() {
     field: { ...field, areaHa: decimal(field.areaHa)! },
     cycle: { id: cycle.id, crop: cycle.crop.name, stage: cycle.growthStage?.name ?? "Not set", planted: Boolean(cycle.actualPlantingDate) },
     design,
+    selectedSectorId: selectedSector?.id,
     sectors: sectors.map((sector) => {
       const last = sector.irrigationEvents[0];
       const hours = last ? Math.max(0, (Date.now() - last.startedAt.getTime()) / 36e5) : 999;

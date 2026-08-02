@@ -28,6 +28,7 @@ type Data = {
   field: { id: string; name: string };
   cycle: { id: string; crop: string };
   budget: { id: string; name: string; plannedAmount: number } | null;
+  selectedSectorId?: string;
   rows: ExpenseRow[];
   totals: { actual: number; planned: number; remaining: number; variance: number; percentUsed: number };
   byCategory: Array<{ category: string; amount: number }>;
@@ -350,7 +351,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
               </div>
               <div>
                 <label className="label">Sector</label>
-                <select name="sectorId" className="input" defaultValue={editing?.sector?.id??""}>
+                <select name="sectorId" className="input" defaultValue={editing ? editing.sector?.id ?? "" : data.selectedSectorId ?? ""}>
                   <option value="">All sectors</option>
                   {data.sectors.map((s) => (
                     <option value={s.id} key={s.id}>
@@ -438,7 +439,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                 />
               </div>
               <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">
-                This budget applies only to the selected lot and its active crop cycle. Logged expenses will update the amount used, remaining balance, and percentage automatically.
+                This budget applies only to the current production area and its active crop cycle. Logged expenses will update the amount used, remaining balance, and percentage automatically.
               </p>
             </div>
             {message && !message.ok && (

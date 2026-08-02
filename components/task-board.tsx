@@ -43,6 +43,7 @@ export function TaskBoard({
   tomorrowDate,
   activeView,
   activeSector,
+  selectedSectorId,
 }: {
   tasks: TaskRow[];
   sectors: Array<{ id: string; name: string }>;
@@ -52,6 +53,7 @@ export function TaskBoard({
   tomorrowDate: string;
   activeView: keyof typeof labels;
   activeSector?: string;
+  selectedSectorId?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -116,7 +118,7 @@ export function TaskBoard({
           {(Object.keys(labels) as Array<keyof typeof labels>).map((view) => (
             <button
               key={view}
-              onClick={() => navigate(view, view === "sector" ? sectors[0]?.id : undefined)}
+              onClick={() => navigate(view, view === "sector" ? selectedSectorId ?? sectors[0]?.id : undefined)}
               className={`min-h-10 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${activeView === view ? "bg-farm-700 text-white" : "text-slate-500"}`}
             >
               {labels[view]}
@@ -336,6 +338,7 @@ export function TaskBoard({
           sectors={sectors}
           members={members}
           tomorrowDate={tomorrowDate}
+          selectedSectorId={selectedSectorId}
           onClose={() => setCreateOpen(false)}
           onSaved={() => {
             setCreateOpen(false);
@@ -351,12 +354,14 @@ function TaskCreateModal({
   sectors,
   members,
   tomorrowDate,
+  selectedSectorId,
   onClose,
   onSaved,
 }: {
   sectors: Array<{ id: string; name: string }>;
   members: Array<{ id: string; name: string }>;
   tomorrowDate: string;
+  selectedSectorId?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -430,7 +435,7 @@ function TaskCreateModal({
           </div>
           <div>
             <label className="label">Sector</label>
-            <select name="sectorId" className="input">
+            <select name="sectorId" className="input" defaultValue={selectedSectorId ?? ""}>
               <option value="">All sectors</option>
               {sectors.map((s) => (
                 <option value={s.id} key={s.id}>

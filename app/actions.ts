@@ -9,6 +9,7 @@ import {
   requireRole,
   verifySector,
   SELECTED_FIELD_COOKIE,
+  SELECTED_SECTOR_COOKIE,
 } from "@/lib/data/context";
 import { combineFarmDateTime } from "@/lib/data/dates";
 import {
@@ -97,8 +98,29 @@ export async function selectFieldAction(fieldId: string): Promise<ActionResult<{
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
     });
+    (await cookies()).delete(SELECTED_SECTOR_COOKIE);
     revalidatePath("/", "layout");
     return { ok: true, data: { fieldId: field.id } };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function selectSectorAction(sectorId: string): Promise<ActionResult<{ sectorId: string }>> {
+  try {
+    const parsedId = z.string().uuid().parse(sectorId);
+    const context = await requireActiveField();
+    const sector = await verifySector(context.field.id, parsedId);
+    if (!sector) throw new SafeActionError("NOT_FOUND", "That working sector is not available.");
+    (await cookies()).set(SELECTED_SECTOR_COOKIE, sector.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    revalidatePath("/", "layout");
+    return { ok: true, data: { sectorId: sector.id } };
   } catch (error) {
     return failure(error);
   }
