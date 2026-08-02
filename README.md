@@ -74,7 +74,7 @@ npm run db:seed:development      # local demo data only
 npx prisma studio          # optional local data browser
 ```
 
-Production initialization is idempotent and creates only the administrator (when absent), farm, Field 1, four sectors, Corn reference stages, a Planning crop cycle with no planting date, and irrigation-design settings. The development seed adds demonstration operations and refuses to run under `NODE_ENV=production` without an explicit dangerous override.
+Production initialization is idempotent and creates only the administrator (when absent), farm, one production area, four sectors, crop-neutral reference stages, a Planning cycle with no selected crop or planting date, and irrigation-design settings. The development seed uses Corn as one example crop, adds demonstration operations, and refuses to run under `NODE_ENV=production` without an explicit dangerous override.
 
 The administrator seed password is supplied only through an environment variable and is never displayed by the application. `SEED_OPERATOR_PASSWORD` is optional; without it, the sample operator is inactive. After the initial administrator signs in, real user accounts can be created under **Settings → Users and access**.
 

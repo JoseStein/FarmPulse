@@ -1195,7 +1195,7 @@ export async function getGuidePageData() {
     })
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
   return {
-    guide: { id: guide?.id ?? null, title: guide?.title ?? `${cycle.crop.name} field guide` },
+    guide: { id: guide?.id ?? null, title: "Crop guide" },
     crop: cycle.crop.name,
     stage,
     daysSincePlanting: cycle.actualPlantingDate

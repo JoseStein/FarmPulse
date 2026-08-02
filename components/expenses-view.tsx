@@ -105,6 +105,10 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
     });
   }
   const max = Math.max(...data.byCategory.map((x) => x.amount), 1);
+  const generatedLegacyBudgetName = `${data.field.name} · ${data.cycle.crop} budget`;
+  const budgetName = data.budget?.name === generatedLegacyBudgetName
+    ? "Production crop-cycle budget"
+    : data.budget?.name;
   return (
     <>
       {message && (
@@ -128,7 +132,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
             <div>
               <p className="text-xs text-slate-500">Planned budget</p>
               <p className="mt-2 text-2xl font-bold">{money(data.totals.planned)}</p>
-              <p className="mt-1 text-xs text-slate-400">{data.budget?.name ?? `${data.cycle.crop} cycle · not set`}</p>
+              <p className="mt-1 text-xs text-slate-400">{budgetName ?? "Active crop cycle · not set"}</p>
             </div>
             <button
               type="button"
@@ -400,7 +404,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                 <div>
                   <h2 className="text-xl font-bold">{data.budget ? "Edit budget" : "Set budget"}</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    All sectors · {data.cycle.crop} crop cycle
+                    All sectors · active crop cycle
                   </p>
                 </div>
               </div>
@@ -419,7 +423,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
                 <input
                   name="name"
                   className="input"
-                  defaultValue={data.budget?.name ?? `${data.cycle.crop} crop-cycle budget`}
+                  defaultValue={budgetName ?? "Production crop-cycle budget"}
                   minLength={2}
                   maxLength={160}
                   required

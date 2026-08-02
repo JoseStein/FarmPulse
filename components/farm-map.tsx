@@ -33,7 +33,7 @@ const palette: Record<string, { fill: string; stroke: string }> = {
   "Planned — not field verified": { fill: "#eef2f7", stroke: "#64748b" },
 };
 
-export function FarmMap({ sectors, crop, timezone, selectedSectorId }: { sectors: Sector[]; crop: string; timezone: string; selectedSectorId?: string }) {
+export function FarmMap({ sectors, timezone, selectedSectorId }: { sectors: Sector[]; timezone: string; selectedSectorId?: string }) {
   const initialIndex = Math.max(0, sectors.findIndex((sector) => sector.id === selectedSectorId));
   const [selected, setSelected] = useState(initialIndex);
   const [pending, startTransition] = useTransition();
@@ -107,7 +107,7 @@ export function FarmMap({ sectors, crop, timezone, selectedSectorId }: { sectors
                     {sector.name}
                   </text>
                   <text x={x + 25} y={y + 62} fontSize="13" fill="#496255">
-                    {sector.dripLines} drip lines · {crop}
+                    {sector.dripLines} drip lines
                   </text>
                   <rect
                     x={x + 22}
@@ -171,7 +171,7 @@ export function FarmMap({ sectors, crop, timezone, selectedSectorId }: { sectors
             <p className="text-xs font-bold uppercase tracking-wide text-farm-600">{savedSelection || pending ? "Working sector" : "Sector preview"}</p>
             <h2 className="mt-1 text-xl font-bold">{s.name}</h2>
             <p className="text-sm text-slate-500">
-              {crop} · {s.dripLines} drip lines
+              {s.dripLines} drip lines
             </p>
           </div>
           <span className="rounded-full bg-farm-50 px-2.5 py-1 text-xs font-bold text-farm-700">{pending ? "Saving…" : savedSelection ? "Selected" : "Select on map"}</span>

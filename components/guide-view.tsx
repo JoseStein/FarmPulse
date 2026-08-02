@@ -51,8 +51,8 @@ export function GuideView({ data }: Props) {
     <div className="mx-auto max-w-6xl p-4 md:p-8">
       <PageHeader
         eyebrow="Curated crop knowledge"
-        title={data.guide.title}
-        description={`Practical ${data.crop} guidance ranked for the active crop stage and current farm records.`}
+        title="Crop guide"
+        description={data.crop === "Crop not selected" ? "Select a crop to receive crop-specific guidance." : `Current crop: ${data.crop}. Guidance is ranked for its active stage and current farm records.`}
       />
       <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
         <div className="flex gap-3">

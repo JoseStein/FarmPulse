@@ -3,7 +3,7 @@ import { PrismaClient, Role, Status } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
-const STAGES = ["Planning", "Land preparation", "Planting", "Germination", "Seedling", "Vegetative growth", "Tasseling", "Silking", "Grain filling", "Maturity", "Harvest", "Completed"];
+const STAGES = ["Planning", "Land preparation", "Planting", "Establishment", "Growth", "Harvest", "Completed"];
 
 export async function initializeProduction() {
   const email = (process.env.INITIAL_ADMIN_EMAIL || "admin@farmpulse.local").trim().toLowerCase();
@@ -35,11 +35,9 @@ export async function initializeProduction() {
   if (!field) field = await prisma.field.create({ data: { farmId: farm.id, name: "Field 1", areaHa: 1, status: Status.ACTIVE } });
   const sectors = [];
   for (let i = 1; i <= 4; i++) sectors.push(await prisma.sector.upsert({ where: { fieldId_name: { fieldId: field.id, name: `Sector ${i}` } }, update: {}, create: { fieldId: field.id, name: `Sector ${i}`, dripLines: i === 3 ? 34 : 33, status: "Planning" } }));
-  const crop = await prisma.crop.upsert({ where: { name: "Corn" }, update: {}, create: { name: "Corn", scientificName: "Zea mays" } });
+  const crop = await prisma.crop.upsert({ where: { name: "Crop not selected" }, update: {}, create: { name: "Crop not selected" } });
   const stages = [];
   for (const [order, name] of STAGES.entries()) stages.push(await prisma.growthStage.upsert({ where: { cropId_name: { cropId: crop.id, name } }, update: { order }, create: { cropId: crop.id, name, order } }));
-  const guide = await prisma.cropGuide.findFirst({ where: { cropId: crop.id } });
-  if (!guide) await prisma.cropGuide.create({ data: { cropId: crop.id, title: "Corn field guide" } });
   let cycle = await prisma.cropCycle.findFirst({ where: { fieldId: field.id, status: Status.ACTIVE } });
   if (!cycle) cycle = await prisma.cropCycle.create({ data: { fieldId: field.id, cropId: crop.id, growthStageId: stages[0].id, status: Status.ACTIVE, notes: "Land preparation has not yet started or is beginning." } });
   for (const sector of sectors) await prisma.cropCycleSector.upsert({ where: { cropCycleId_sectorId: { cropCycleId: cycle.id, sectorId: sector.id } }, update: {}, create: { cropCycleId: cycle.id, sectorId: sector.id } });

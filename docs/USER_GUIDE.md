@@ -38,6 +38,8 @@ The current farm has one active production area, so FarmPulse does not show the 
 
 The crop names shown on the original May 2024 land drawing—Corn and Melon—are examples only. They do not permanently assign a crop to a lot. An administrator chooses the planned crop in **Crop Cycle**, or the person logging planting chooses the crop in **Activities**.
 
+When a crop name such as **Corn** appears on the Dashboard, Crop Cycle, Crop Guide, or another operational summary, it is the crop currently saved in the production record—not a restriction of FarmPulse. Changing the planned crop or recording a different crop at planting updates those crop-driven labels.
+
 ### Desktop and mobile navigation
 
 On a desktop or tablet, the primary operational blades appear in the left sidebar. On a phone, the bottom bar contains **Home**, **Map**, **Tasks**, **Log**, and **More**. To keep navigation compact, **Prepare Land** and **Land Design** are contextual actions inside Farm Map and the Dashboard, while **My Account** opens from the user profile/avatar.
