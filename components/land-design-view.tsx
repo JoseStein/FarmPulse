@@ -59,9 +59,10 @@ export function LandDesignView({
                 <g key={lot.number}>
                   <rect x={x} y={y} width="255" height="160" rx="8" fill="#175f2f" stroke="#f0c64f" strokeWidth="3" />
                   <rect x={x + 10} y={y + 10} width="235" height="140" fill="url(#designRows)" />
-                  <text x={x + 127} y={y + 64} textAnchor="middle" fill="white" fontSize="20" fontWeight="800">{lot.name.toUpperCase()} · {lot.crop.toUpperCase()}</text>
+                  <text x={x + 127} y={y + 58} textAnchor="middle" fill="white" fontSize="20" fontWeight="800">{lot.name.toUpperCase()}</text>
                   <text x={x + 127} y={y + 91} textAnchor="middle" fill="white" fontSize="17">{lot.areaHa.toFixed(2)} ha</text>
                   <text x={x + 127} y={y + 116} textAnchor="middle" fill="#f3d260" fontSize="13">{lot.beds} beds × {lot.bedLengthM} m</text>
+                  <text x={x + 127} y={y + 137} textAnchor="middle" fill="#d7eadb" fontSize="11">Drawing example: {lot.drawingExampleCrop} · not assigned</text>
                 </g>
               ))}
               <path d="M225 575H775V325H380 M775 325H625 M445 325V130" fill="none" stroke="#4fa3ff" strokeWidth="6" />
@@ -73,6 +74,7 @@ export function LandDesignView({
             </svg>
           </div>
           <p className="mt-3 text-xs text-slate-500">FarmPulse schematic transcribed from the owner-provided drawing. It preserves the planning relationships but is not a replacement for the original engineering plan or a field survey.</p>
+          <p className="mt-2 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">{design.document.cropLabelInterpretation}</p>
         </div>
       </section>
 

@@ -107,17 +107,23 @@ export async function getActiveCropCycle() {
 
 export async function getCropCyclePageData() {
   const context = await requireActiveCycle();
-  const [cycle, stages] = await Promise.all([
+  const [cycle, stages, crops] = await Promise.all([
     getActiveCropCycle(),
     prisma.growthStage.findMany({
       where: { cropId: context.cycle.cropId },
       select: { id: true, name: true, order: true },
       orderBy: { order: "asc" },
     }),
+    prisma.crop.findMany({
+      where: { name: { not: "Crop not selected" } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
   return {
     cycle,
     stages,
+    crops,
     role: context.role,
     timezone: context.farm.timezone,
     now: new Date().toISOString(),
@@ -174,12 +180,13 @@ export async function getLandPreparationData(weather: WeatherResult) {
   const hasDrainageEvidence = hasEvidence("drainage", "drain", "waterlogging");
   const irrigationConfigured = Boolean(irrigationDesign) || sectors.some((sector) => sector.dripLines > 0);
   const irrigationTested = activities.some((activity) => activity.type === "IRRIGATION");
+  const cropSelected = context.cycle.crop.name !== "Crop not selected";
   const cropName = context.cycle.crop.name.toLowerCase();
-  const plantingMaterial = inventory.find((item) => {
+  const plantingMaterial = cropSelected ? inventory.find((item) => {
     const haystack = `${item.name} ${item.category}`.toLowerCase();
     return Number(item.quantityOnHand) > 0 &&
       (haystack.includes("seed") || haystack.includes("seedling") || haystack.includes(cropName));
-  });
+  }) : undefined;
   const usableEquipment = equipment.filter((item) =>
     ["available", "ready", "active", "healthy", "operational"].some((status) =>
       item.status.toLowerCase().includes(status),
@@ -206,9 +213,11 @@ export async function getLandPreparationData(weather: WeatherResult) {
     {
       id: "crop",
       name: "Planning crop",
-      status: "VERIFIED",
-      detail: `${context.cycle.crop.name} is selected for the active planning cycle${context.cycle.variety ? ` (${context.cycle.variety})` : "; variety is not yet known"}.`,
-      source: "Active crop cycle",
+      status: cropSelected ? "VERIFIED" : "NOT_ASSESSED",
+      detail: cropSelected
+        ? `${context.cycle.crop.name} is selected for the active planning cycle${context.cycle.variety ? ` (${context.cycle.variety})` : "; variety is not yet known"}.`
+        : "No crop is assigned to this lot. Crop labels in the May 2024 drawing are examples only.",
+      source: cropSelected ? "Active crop cycle" : "No crop assignment",
     },
     {
       id: "soil",
@@ -259,7 +268,9 @@ export async function getLandPreparationData(weather: WeatherResult) {
       status: plantingMaterial ? "PLANNED" : "NOT_ASSESSED",
       detail: plantingMaterial
         ? `${plantingMaterial.name} is recorded with ${Number(plantingMaterial.quantityOnHand)} ${plantingMaterial.unit} on hand.`
-        : `No available ${context.cycle.crop.name} seed or planting material is recorded. This does not mean it has been purchased or is missing.`,
+        : cropSelected
+          ? `No available ${context.cycle.crop.name} seed or planting material is recorded. This does not mean it has been purchased or is missing.`
+          : "Planting-material requirements cannot be assessed until a crop is selected.",
       source: plantingMaterial ? "Inventory" : "No matching inventory record",
     },
     {
@@ -304,8 +315,10 @@ export async function getLandPreparationData(weather: WeatherResult) {
       reason: "There are no laboratory measurements yet, so FarmPulse will not guess fertilizer or lime requirements.",
       evidence: "No soil result recorded",
     },
-    ...(!plantingMaterial
-      ? [{ id: "confirm-material", priority: "MEDIUM" as const, title: `Confirm ${context.cycle.crop.name} planting-material requirements`, reason: "Quantity cannot be calculated safely until variety, spacing, and planting method are confirmed.", evidence: "Crop plan is incomplete" }]
+    ...(!cropSelected
+      ? [{ id: "select-crop", priority: "MEDIUM" as const, title: "Select a crop when the production plan is known", reason: "The crops printed on the engineering drawing are examples, so FarmPulse has left this lot unassigned.", evidence: "Owner clarification" }]
+      : !plantingMaterial
+        ? [{ id: "confirm-material", priority: "MEDIUM" as const, title: `Confirm ${context.cycle.crop.name} planting-material requirements`, reason: "Quantity cannot be calculated safely until variety, spacing, and planting method are confirmed.", evidence: "Crop plan is incomplete" }]
       : []),
   ];
 
@@ -514,6 +527,7 @@ export async function getActivityPageData() {
       orderBy: { name: "asc" },
     }),
     prisma.crop.findMany({
+      where: { name: { not: "Crop not selected" } },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),

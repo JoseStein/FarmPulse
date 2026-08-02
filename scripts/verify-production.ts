@@ -21,14 +21,12 @@ async function main() {
   const cycles = farm.fields.flatMap((field) => field.cycles);
   const importedDesign = await prisma.appSetting.findUnique({ where: { farmId_key: { farmId, key: "land_design_may_2024" } } });
   const lotNames = new Set(farm.fields.map((field) => field.name));
-  const cropCounts = cycles.reduce((counts, cycle) => ({ ...counts, [cycle.cropId]: (counts[cycle.cropId] ?? 0) + 1 }), {} as Record<string, number>);
-  const cornCrop = await prisma.crop.findUnique({ where: { name: "Corn" }, select: { id: true } });
-  const melonCrop = await prisma.crop.findUnique({ where: { name: "Melon" }, select: { id: true } });
+  const unassignedCrop = await prisma.crop.findUnique({ where: { name: "Crop not selected" }, select: { id: true } });
   const checks: Record<string, boolean> = {
     administratorPresent: farm.memberships.some((m) => m.role === "ADMIN"),
     fourPlannedLotsPresent: ["Lot 1", "Lot 2", "Lot 3", "Lot 4"].every((name) => lotNames.has(name)),
     oneIrrigationZonePerLot: farm.fields.length === 4 && farm.fields.every((field) => field.sectors.length === 1),
-    twoCornAndTwoMelonCycles: Boolean(cornCrop && melonCrop && cropCounts[cornCrop.id] === 2 && cropCounts[melonCrop.id] === 2),
+    cropsRemainUnassigned: Boolean(unassignedCrop && cycles.length === 4 && cycles.every((cycle) => cycle.cropId === unassignedCrop.id)),
     allCyclesPlanning: cycles.length === 4 && cycles.every((cycle) => ["Planning", "Land preparation"].includes(cycle.growthStage?.name ?? "")),
     noPlantingDates: cycles.length === 4 && cycles.every((cycle) => !cycle.plannedPlantingDate && !cycle.actualPlantingDate),
     noYieldOrHarvest: cycles.length === 4 && cycles.every((cycle) => !cycle.expectedYieldKg && !cycle.actualYieldKg && !cycle.expectedHarvestDate && !cycle.actualHarvestDate),

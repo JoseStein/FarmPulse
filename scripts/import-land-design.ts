@@ -7,8 +7,7 @@ const execute = process.argv.includes("--execute");
 const confirmation = process.argv.find((arg) => arg.startsWith("--confirm="))?.split("=")[1];
 const REQUIRED_CONFIRMATION = "IMPORT_MAY_2024_LAND_DESIGN";
 
-const CORN_STAGES = ["Planning", "Land preparation", "Planting", "Germination", "Seedling", "Vegetative growth", "Tasseling", "Silking", "Grain filling", "Maturity", "Harvest", "Completed"];
-const MELON_STAGES = ["Planning", "Land preparation", "Planting", "Germination", "Establishment", "Vegetative growth", "Flowering", "Fruit set", "Fruit development", "Maturity", "Harvest", "Completed"];
+const UNASSIGNED_STAGES = ["Planning", "Land preparation", "Planting"];
 
 async function operationalCounts(farmId: string) {
   const fieldWhere = { field: { farmId } };
@@ -54,7 +53,7 @@ async function main() {
     mode: execute ? "EXECUTE" : "DRY_RUN",
     farmId: farm.id,
     currentFields: fields.map((field) => ({ id: field.id, name: field.name, sectors: field.sectors.length, activeCycles: field.cycles.length })),
-    proposedLots: MAY_2024_LAND_DESIGN.lots.map((lot) => ({ name: lot.name, crop: lot.crop, areaHa: lot.areaHa, irrigationZones: 1, plannedDripLines: lot.beds * MAY_2024_LAND_DESIGN.irrigation.tapesPerBed })),
+    proposedLots: MAY_2024_LAND_DESIGN.lots.map((lot) => ({ name: lot.name, plannedCrop: "Crop not selected", drawingExampleCrop: lot.drawingExampleCrop, areaHa: lot.areaHa, irrigationZones: 1, plannedDripLines: lot.beds * MAY_2024_LAND_DESIGN.irrigation.tapesPerBed })),
     plannedAssets: ["River intake pump", "Gravel filter", "24,000 L storage tank", "Irrigation pressure pump", "Disk filter", "Gate valves 1–4"],
     designDiscrepanciesPreserved: MAY_2024_LAND_DESIGN.discrepancies.map((item) => item.title),
     operationalRecords: counts,
@@ -72,10 +71,8 @@ async function main() {
 
   await prisma.$transaction(async (tx) => {
     const designJson = JSON.parse(JSON.stringify(MAY_2024_LAND_DESIGN)) as Prisma.InputJsonValue;
-    const corn = await tx.crop.upsert({ where: { name: "Corn" }, update: { scientificName: "Zea mays" }, create: { name: "Corn", scientificName: "Zea mays" } });
-    const melon = await tx.crop.upsert({ where: { name: "Melon" }, update: { scientificName: "Cucumis melo" }, create: { name: "Melon", scientificName: "Cucumis melo" } });
-    const cornStages = await ensureStages(tx, corn.id, CORN_STAGES);
-    const melonStages = await ensureStages(tx, melon.id, MELON_STAGES);
+    const unassignedCrop = await tx.crop.upsert({ where: { name: "Crop not selected" }, update: {}, create: { name: "Crop not selected" } });
+    const unassignedStages = await ensureStages(tx, unassignedCrop.id, UNASSIGNED_STAGES);
 
     const lotFields = [];
     for (const lot of MAY_2024_LAND_DESIGN.lots) {
@@ -103,13 +100,10 @@ async function main() {
     }
 
     for (const [index, field] of lotFields.entries()) {
-      const lot = MAY_2024_LAND_DESIGN.lots[index];
-      const crop = lot.crop === "Corn" ? corn : melon;
-      const stages = lot.crop === "Corn" ? cornStages : melonStages;
       let cycle = await tx.cropCycle.findFirst({ where: { fieldId: field.id, status: Status.ACTIVE }, orderBy: { createdAt: "desc" } });
       const cycleData = {
-        cropId: crop.id,
-        growthStageId: stages[0].id,
+        cropId: unassignedCrop.id,
+        growthStageId: unassignedStages[0].id,
         variety: null,
         plannedPlantingDate: null,
         actualPlantingDate: null,
@@ -120,7 +114,7 @@ async function main() {
         expectedYieldKg: null,
         actualYieldKg: null,
         status: Status.ACTIVE,
-        notes: "Planned from May 2024 land design; crop variety, dates, quantities, and installation remain unverified.",
+        notes: "Planned from May 2024 land design. No crop is assigned; crop labels on the drawing are illustrative examples only. Dates, quantities, and installation remain unverified.",
       };
       cycle = cycle
         ? await tx.cropCycle.update({ where: { id: cycle.id }, data: cycleData })
@@ -152,7 +146,7 @@ async function main() {
       data: { farmId: farm.id, action: "IMPORT_LAND_DESIGN", entityType: "Farm", entityId: farm.id, metadata: { revision: "May 2024", lots: 4, evidenceStatus: "PLANNED_NOT_FIELD_VERIFIED", discrepancies: ["production-area", "emitter-count"] } },
     });
   });
-  console.log(JSON.stringify({ imported: true, lots: 4, cropCycles: { Corn: 2, Melon: 2 }, evidenceStatus: "PLANNED_NOT_FIELD_VERIFIED" }, null, 2));
+  console.log(JSON.stringify({ imported: true, lots: 4, cropCycles: { cropAssignment: "NOT_SELECTED", count: 4 }, drawingCropLabels: "ILLUSTRATIVE_ONLY", evidenceStatus: "PLANNED_NOT_FIELD_VERIFIED" }, null, 2));
 }
 
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

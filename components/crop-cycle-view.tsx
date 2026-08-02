@@ -23,6 +23,7 @@ export function CropCycleView({
   data: {
     cycle: Cycle;
     stages: Array<{ id: string; name: string; order: number }>;
+    crops: Array<{ id: string; name: string }>;
     role: "ADMIN" | "OPERATOR";
     timezone: string;
     now: string;
@@ -32,6 +33,9 @@ export function CropCycleView({
   const [open, setOpen] = useState(false),
     [message, setMessage] = useState(""),
     [pending, startTransition] = useTransition();
+  const [planningCrop, setPlanningCrop] = useState(
+    data.crops.some((crop) => crop.id === data.cycle.crop.id) ? data.cycle.crop.id : "",
+  );
   const router = useRouter();
   const planting = data.cycle.actualPlantingDate;
   const age = planting ? Math.max(0, Math.floor((new Date(data.now).getTime() - new Date(planting).getTime()) / 864e5)) : null;
@@ -44,6 +48,7 @@ export function CropCycleView({
     startTransition(async () => {
       const result = await updateCropCycleAction({
         ...Object.fromEntries(f),
+        planningCropId: planningCrop === "new" ? undefined : planningCrop,
         populationTarget: f.get("populationTarget") ? Number(f.get("populationTarget")) : null,
         expectedYieldKg: f.get("expectedYieldKg") ? Number(f.get("expectedYieldKg")) : null,
         actualYieldKg: f.get("actualYieldKg") ? Number(f.get("actualYieldKg")) : null,
@@ -148,11 +153,31 @@ export function CropCycleView({
               </button>
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="label">Planned crop</label>
+                <select
+                  name="planningCropId"
+                  value={planningCrop}
+                  onChange={(event) => setPlanningCrop(event.target.value)}
+                  className="input"
+                  required
+                >
+                  <option value="" disabled>Choose a crop…</option>
+                  {data.crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}
+                  <option value="new">Add another crop…</option>
+                </select>
+              </div>
+              {planningCrop === "new" && (
+                <div className="sm:col-span-2">
+                  <label className="label">New crop name</label>
+                  <input name="planningCropName" className="input" minLength={2} maxLength={120} required placeholder="For example: tomato, plantain, watermelon" />
+                </div>
+              )}
               <div>
                 <label className="label">Variety</label>
                 <input name="variety" defaultValue={data.cycle.variety ?? ""} className="input" />
               </div>
-              <div>
+              {planningCrop === data.cycle.crop.id ? <div>
                 <label className="label">Growth stage</label>
                 <select
                   name="growthStageId"
@@ -165,7 +190,7 @@ export function CropCycleView({
                     </option>
                   ))}
                 </select>
-              </div>
+              </div> : <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800">The growth stage will start at Planning when this crop is selected.</div>}
               <div>
                 <label className="label">Actual planting</label>
                 <input

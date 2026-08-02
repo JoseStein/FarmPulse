@@ -9,6 +9,7 @@ export const MAY_2024_LAND_DESIGN = {
     scale: "1:1,000",
     evidenceStatus: "PLANNED_NOT_FIELD_VERIFIED",
     source: "Owner-provided reference drawing",
+    cropLabelInterpretation: "Corn and Melon labels are illustrative examples on the drawing, not assigned crops.",
   },
   coordinateSystem: { datum: "WGS 84", zone: "17N", units: "m" },
   boundaryVertices: [
@@ -37,10 +38,10 @@ export const MAY_2024_LAND_DESIGN = {
     unresolvedProductionArea: 4,
   },
   lots: [
-    { number: 1, name: "Lot 1", crop: "Corn", areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 1" },
-    { number: 2, name: "Lot 2", crop: "Corn", areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 2" },
-    { number: 3, name: "Lot 3", crop: "Melon", areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 3" },
-    { number: 4, name: "Lot 4", crop: "Melon", areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 4" },
+    { number: 1, name: "Lot 1", drawingExampleCrop: "Corn", plannedCrop: null, areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 1" },
+    { number: 2, name: "Lot 2", drawingExampleCrop: "Corn", plannedCrop: null, areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 2" },
+    { number: 3, name: "Lot 3", drawingExampleCrop: "Melon", plannedCrop: null, areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 3" },
+    { number: 4, name: "Lot 4", drawingExampleCrop: "Melon", plannedCrop: null, areaHa: 1, beds: 100, bedLengthM: 100, valve: "Gate valve 4" },
   ],
   irrigation: {
     source: "Río Chico",

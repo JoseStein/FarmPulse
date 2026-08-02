@@ -138,7 +138,9 @@ export async function createLandPreparationTasksAction(): Promise<ActionResult<{
       },
       {
         name: "[Land setup] Confirm crop variety and planting method",
-        description: `Confirm the ${context.cycle.crop.name} variety, seed or planting-material format, row spacing, plant spacing, and supplier before calculating quantities.`,
+        description: context.cycle.crop.name === "Crop not selected"
+          ? "Select the intended crop, then confirm its variety, seed or planting-material format, row spacing, plant spacing, and supplier before calculating quantities."
+          : `Confirm the ${context.cycle.crop.name} variety, seed or planting-material format, row spacing, plant spacing, and supplier before calculating quantities.`,
         category: "Crop planning",
         priority: "MEDIUM" as const,
         offsetDays: 5,
@@ -870,7 +872,7 @@ export async function saveEquipmentAction(input: unknown): Promise<ActionResult<
 export async function addMaintenanceAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const data = maintenanceSchema.parse(input);
-    const context = await requireFarmContext();
+    const context = await requireActiveField();
     const equipment = await prisma.equipment.findFirst({
       where: { id: data.equipmentId, farmId: context.farm.id },
     });
@@ -896,11 +898,7 @@ export async function addMaintenanceAction(input: unknown): Promise<ActionResult
       });
       await tx.activity.create({
         data: {
-          fieldId: (
-            await tx.field.findFirstOrThrow({
-              where: { farmId: context.farm.id, status: "ACTIVE", deletedAt: null },
-            })
-          ).id,
+          fieldId: context.field.id,
           createdById: context.user.id,
           type: "EQUIPMENT_MAINTENANCE",
           occurredAt: record.performedAt,
@@ -934,25 +932,46 @@ export async function updateCropCycleAction(input: unknown): Promise<ActionResul
     const data = cropCycleSchema.parse(input);
     const context = await requireActiveCycle();
     requireRole(context.role, ["ADMIN"]);
-    if (data.growthStageId) {
-      const stage = await prisma.growthStage.findFirst({
-        where: { id: data.growthStageId, cropId: context.cycle.cropId },
-      });
-      if (!stage) throw new SafeActionError("NOT_FOUND", "Growth stage not found.");
-    }
     const beforeStage = context.cycle.growthStageId;
+    const beforeCrop = context.cycle.cropId;
     const updated = await prisma.$transaction(async (tx) => {
+      let targetCrop = await tx.crop.findUnique({ where: { id: context.cycle.cropId } });
+      let newCropCreated = false;
+      if (data.planningCropId) targetCrop = await tx.crop.findUnique({ where: { id: data.planningCropId } });
+      else if (data.planningCropName) {
+        targetCrop = await tx.crop.findFirst({ where: { name: { equals: data.planningCropName, mode: "insensitive" } } });
+        if (!targetCrop) {
+          targetCrop = await tx.crop.create({ data: { name: data.planningCropName } });
+          newCropCreated = true;
+        }
+      }
+      if (!targetCrop) throw new SafeActionError("NOT_FOUND", "The selected crop was not found.");
+      if (newCropCreated) {
+        const stages = ["Planning", "Land preparation", "Planting", "Establishment", "Growth", "Harvest", "Completed"];
+        await tx.growthStage.createMany({ data: stages.map((name, order) => ({ cropId: targetCrop!.id, name, order })) });
+      }
+      const cropChanged = targetCrop.id !== context.cycle.cropId;
+      let growthStageId = data.growthStageId || null;
+      if (cropChanged) {
+        let planning = await tx.growthStage.findFirst({ where: { cropId: targetCrop.id, name: "Planning" } });
+        if (!planning) planning = await tx.growthStage.create({ data: { cropId: targetCrop.id, name: "Planning", order: 0 } });
+        growthStageId = planning.id;
+      } else if (growthStageId) {
+        const stage = await tx.growthStage.findFirst({ where: { id: growthStageId, cropId: targetCrop.id } });
+        if (!stage) throw new SafeActionError("NOT_FOUND", "Growth stage not found.");
+      }
       const row = await tx.cropCycle.update({
         where: { id: context.cycle.id },
         data: {
-          variety: data.variety,
+          cropId: targetCrop.id,
+          variety: data.variety || null,
           actualPlantingDate: data.actualPlantingDate
             ? new Date(`${data.actualPlantingDate}T12:00:00Z`)
             : null,
           expectedHarvestDate: data.expectedHarvestDate
             ? new Date(`${data.expectedHarvestDate}T12:00:00Z`)
             : null,
-          growthStageId: data.growthStageId || null,
+          growthStageId,
           populationTarget: data.populationTarget,
           expectedYieldKg: data.expectedYieldKg,
           actualHarvestDate: data.actualHarvestDate
@@ -969,7 +988,7 @@ export async function updateCropCycleAction(input: unknown): Promise<ActionResul
           action: beforeStage !== row.growthStageId ? "GROWTH_STAGE_CHANGE" : "UPDATE",
           entityType: "CropCycle",
           entityId: row.id,
-          metadata: { fromStageId: beforeStage, toStageId: row.growthStageId },
+          metadata: { fromStageId: beforeStage, toStageId: row.growthStageId, fromCropId: beforeCrop, toCropId: row.cropId },
         },
       });
       return row;

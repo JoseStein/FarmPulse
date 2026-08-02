@@ -207,6 +207,8 @@ export const maintenanceSchema = z.object({
 });
 
 export const cropCycleSchema = z.object({
+  planningCropId: idSchema.optional().or(z.literal("")),
+  planningCropName: z.string().trim().min(2).max(120).optional().or(z.literal("")),
   variety: z.string().trim().max(120).optional(),
   actualPlantingDate: z.string().date().optional().or(z.literal("")),
   expectedHarvestDate: z.string().date().optional().or(z.literal("")),

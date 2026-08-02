@@ -244,7 +244,9 @@ export function ActivityLogger({
   );
   const [duration, setDuration] = useState(60);
   const [inventoryId, setInventoryId] = useState("");
-  const [plantingCrop, setPlantingCrop] = useState(data.cycle.cropId);
+  const [plantingCrop, setPlantingCrop] = useState(
+    data.crops.some((crop) => crop.id === data.cycle.cropId) ? data.cycle.cropId : "",
+  );
   const [flow, setFlow] = useState<number | "">(data.sectors.find((s) => s.id === sectorId)?.flowM3h ?? "");
   const [saved, setSaved] = useState<{ liters: number | null } | null>(null);
   const [error, setError] = useState("");
@@ -265,7 +267,7 @@ export function ActivityLogger({
       type,
       sectorId: type === "IRRIGATION" ? sectorId : String(form.get("sectorId") || "") || undefined,
       cropCycleId: data.cycle.id,
-      plantingCropId: type === "PLANTING" && plantingCrop !== "new" ? plantingCrop : undefined,
+      plantingCropId: type === "PLANTING" && plantingCrop && plantingCrop !== "new" ? plantingCrop : undefined,
       plantingCropName:
         type === "PLANTING" && plantingCrop === "new"
           ? String(form.get("plantingCropName") || "") || undefined
@@ -405,6 +407,7 @@ export function ActivityLogger({
                     onChange={(event) => setPlantingCrop(event.target.value)}
                     required
                   >
+                    <option value="" disabled>Choose a crop…</option>
                     {data.crops.map((crop) => (
                       <option value={crop.id} key={crop.id}>
                         {crop.name}{crop.id === data.cycle.cropId ? " (currently planned)" : ""}
