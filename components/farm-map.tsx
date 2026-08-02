@@ -28,6 +28,7 @@ const palette: Record<string, { fill: string; stroke: string }> = {
   "Attention needed": { fill: "#fff0cc", stroke: "#d39b36" },
   "Task overdue": { fill: "#f3e8ff", stroke: "#9333ea" },
   Critical: { fill: "#fee2e2", stroke: "#dc2626" },
+  "Planned — not field verified": { fill: "#eef2f7", stroke: "#64748b" },
 };
 
 export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: string; timezone: string }) {
@@ -48,7 +49,7 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
           <svg
             viewBox="0 0 700 610"
             role="img"
-            aria-label="Field divided into four irrigation sectors"
+            aria-label={`Field with ${sectors.length} irrigation zone${sectors.length === 1 ? "" : "s"}`}
             className="relative w-full"
           >
             <defs>
@@ -60,8 +61,11 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
               N ↑ · 100 meters
             </text>
             {sectors.map((sector, i) => {
-              const x = i % 2 ? 355 : 55,
-                y = i > 1 ? 315 : 55,
+              const single = sectors.length === 1,
+                x = single ? 55 : i % 2 ? 355 : 55,
+                y = single ? 55 : i > 1 ? 315 : 55,
+                width = single ? 590 : 290,
+                height = single ? 505 : 245,
                 c = palette[sector.status] ?? palette["Attention needed"];
               return (
                 <g
@@ -75,14 +79,14 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
                   <rect
                     x={x}
                     y={y}
-                    width="290"
-                    height="245"
+                    width={width}
+                    height={height}
                     rx="18"
                     fill={c.fill}
                     stroke={selected === i ? "#285b3e" : c.stroke}
                     strokeWidth={selected === i ? 6 : 3}
                   />
-                  <rect x={x + 13} y={y + 13} width="264" height="219" rx="11" fill="url(#rows)" />
+                  <rect x={x + 13} y={y + 13} width={width - 26} height={height - 26} rx="11" fill="url(#rows)" />
                   <text x={x + 25} y={y + 38} fontSize="20" fontWeight="800" fill="#17352b">
                     {sector.name}
                   </text>
@@ -91,21 +95,21 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
                   </text>
                   <rect
                     x={x + 22}
-                    y={y + 179}
+                    y={y + height - 66}
                     width={Math.min(220, sector.status.length * 7.3 + 25)}
                     height="32"
                     rx="16"
                     fill="white"
                     fillOpacity=".88"
                   />
-                  <text x={x + 35} y={y + 200} fontSize="13" fontWeight="700" fill="#314f42">
+                    <text x={x + 35} y={y + height - 45} fontSize="13" fontWeight="700" fill="#314f42">
                     {sector.status}
                   </text>
                   {sector.alerts > 0 && (
                     <>
-                      <circle cx={x + 255} cy={y + 30} r="16" fill="#c15a32" />
+                      <circle cx={x + width - 35} cy={y + 30} r="16" fill="#c15a32" />
                       <text
-                        x={x + 255}
+                        x={x + width - 35}
                         y={y + 35}
                         textAnchor="middle"
                         fontSize="13"
@@ -130,7 +134,7 @@ export function FarmMap({ sectors, crop, timezone }: { sectors: Sector[]; crop: 
             >
               100 meters
             </text>
-            <path d="M350 55v505M55 307h590" stroke="#f8faf8" strokeWidth="8" />
+            {sectors.length > 1 && <path d="M350 55v505M55 307h590" stroke="#f8faf8" strokeWidth="8" />}
           </svg>
         </div>
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600">

@@ -23,6 +23,14 @@ export async function initializeProduction() {
     await prisma.farmMembership.upsert({ where: { farmId_userId: { farmId: farm.id, userId: admin.id } }, update: { role: Role.ADMIN }, create: { farmId: farm.id, userId: admin.id, role: Role.ADMIN } });
   }
 
+  const importedLot = await prisma.field.findFirst({ where: { farmId: farm.id, name: "Lot 1", deletedAt: null } });
+  if (importedLot) {
+    const importedCycle = await prisma.cropCycle.findFirst({ where: { fieldId: importedLot.id, status: Status.ACTIVE }, orderBy: { createdAt: "desc" } });
+    if (!importedCycle) throw new Error("Lot 1 exists without an active crop cycle; repair the imported land design before deploying.");
+    console.log("Production structure ready", { farmId: farm.id, fieldId: importedLot.id, cycleId: importedCycle.id, landDesign: "May 2024" });
+    return { farm, field: importedLot, cycle: importedCycle, admin };
+  }
+
   let field = await prisma.field.findFirst({ where: { farmId: farm.id, name: "Field 1" } });
   if (!field) field = await prisma.field.create({ data: { farmId: farm.id, name: "Field 1", areaHa: 1, status: Status.ACTIVE } });
   const sectors = [];

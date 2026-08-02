@@ -36,7 +36,7 @@ type Data = {
   timezone: string;
   today: string;
   currentTime: string;
-  sectors: Array<{ id: string; name: string; flowM3h: number }>;
+  sectors: Array<{ id: string; name: string; flowM3h: number | null }>;
   inventory: Array<{ id: string; name: string; quantityOnHand: number; unit: string }>;
   activities: ActivityRow[];
 };
@@ -245,17 +245,17 @@ export function ActivityLogger({
   const [duration, setDuration] = useState(60);
   const [inventoryId, setInventoryId] = useState("");
   const [plantingCrop, setPlantingCrop] = useState(data.cycle.cropId);
-  const [flow, setFlow] = useState(data.sectors.find((s) => s.id === sectorId)?.flowM3h ?? 11);
+  const [flow, setFlow] = useState<number | "">(data.sectors.find((s) => s.id === sectorId)?.flowM3h ?? "");
   const [saved, setSaved] = useState<{ liters: number | null } | null>(null);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [key, setKey] = useState(() => crypto.randomUUID());
   const router = useRouter();
   const formConfig = activityForms[type] ?? activityForms.OTHER;
-  const estimated = useMemo(() => Math.round(((flow * duration) / 60) * 1000), [flow, duration]);
+  const estimated = useMemo(() => flow === "" ? null : Math.round(((flow * duration) / 60) * 1000), [flow, duration]);
   function chooseSector(id: string) {
     setSectorId(id);
-    setFlow(data.sectors.find((s) => s.id === id)?.flowM3h ?? 11);
+    setFlow(data.sectors.find((s) => s.id === id)?.flowM3h ?? "");
   }
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -288,7 +288,7 @@ export function ActivityLogger({
     };
     if (type === "IRRIGATION") {
       payload.durationMinutes = duration;
-      payload.flowM3h = flow;
+      payload.flowM3h = flow === "" ? undefined : flow;
       payload.pressureBar = form.get("pressureBar") ? Number(form.get("pressureBar")) : undefined;
     }
     startTransition(async () => {
@@ -476,7 +476,7 @@ export function ActivityLogger({
                       className="input rounded-r-none"
                       type="number"
                       value={flow}
-                      onChange={(e) => setFlow(Number(e.target.value))}
+                      onChange={(e) => setFlow(e.target.value ? Number(e.target.value) : "")}
                       step="0.1"
                       min="0.1"
                       required
@@ -506,7 +506,7 @@ export function ActivityLogger({
                 <div>
                   <label className="label">Estimated water</label>
                   <div aria-live="polite" className="input flex items-center bg-slate-50 font-semibold">
-                    {estimated.toLocaleString()} liters
+                    {estimated == null ? "Enter measured flow" : `${estimated.toLocaleString()} liters`}
                   </div>
                 </div>
               </>

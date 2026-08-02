@@ -8,6 +8,7 @@ import {
   requireFarmContext,
   requireRole,
   verifySector,
+  SELECTED_FIELD_COOKIE,
 } from "@/lib/data/context";
 import { combineFarmDateTime } from "@/lib/data/dates";
 import {
@@ -34,6 +35,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { addDays } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { cookies } from "next/headers";
 
 export type ActionResult<T = undefined> =
   { ok: true; data: T } | { ok: false; error: string; fields?: Record<string, string[]> };
@@ -76,6 +78,29 @@ function refreshOperationalPages() {
     "/prepare",
   ])
     revalidatePath(path);
+}
+
+export async function selectFieldAction(fieldId: string): Promise<ActionResult<{ fieldId: string }>> {
+  try {
+    const parsedId = z.string().uuid().parse(fieldId);
+    const context = await requireFarmContext();
+    const field = await prisma.field.findFirst({
+      where: { id: parsedId, farmId: context.farm.id, status: "ACTIVE", deletedAt: null },
+      select: { id: true },
+    });
+    if (!field) throw new SafeActionError("NOT_FOUND", "That production lot is not available.");
+    (await cookies()).set(SELECTED_FIELD_COOKIE, field.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    revalidatePath("/", "layout");
+    return { ok: true, data: { fieldId: field.id } };
+  } catch (error) {
+    return failure(error);
+  }
 }
 
 export async function createLandPreparationTasksAction(): Promise<ActionResult<{ createdCount: number }>> {
@@ -296,8 +321,12 @@ export async function createActivityAction(
     const design = await prisma.appSetting.findUnique({
       where: { farmId_key: { farmId: context.farm.id, key: "irrigation_design" } },
     });
+    if (data.type === "IRRIGATION" && !flowM3h) {
+      const configuredFlow = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h);
+      if (Number.isFinite(configuredFlow) && configuredFlow > 0) flowM3h = configuredFlow;
+    }
     if (data.type === "IRRIGATION" && !flowM3h)
-      flowM3h = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h ?? 11);
+      throw new SafeActionError("VALIDATION", "Enter a measured flow rate; the planned design has not been field verified.");
     const duration =
       data.durationMinutes ??
       (data.startTime && data.endTime
@@ -1127,7 +1156,7 @@ export async function getActivityDefaultsAction(): Promise<
     fieldId: string;
     cropCycleId: string;
     timezone: string;
-    sectors: Array<{ id: string; name: string; flowM3h: number }>;
+    sectors: Array<{ id: string; name: string; flowM3h: number | null }>;
   }>
 > {
   try {
@@ -1142,7 +1171,8 @@ export async function getActivityDefaultsAction(): Promise<
         where: { farmId_key: { farmId: context.farm.id, key: "irrigation_design" } },
       }),
     ]);
-    const flowM3h = Number((setting?.value as Record<string, unknown> | null)?.sectorFlowM3h ?? 11);
+    const configuredFlow = Number((setting?.value as Record<string, unknown> | null)?.sectorFlowM3h);
+    const flowM3h = Number.isFinite(configuredFlow) && configuredFlow > 0 ? configuredFlow : null;
     return {
       ok: true,
       data: {

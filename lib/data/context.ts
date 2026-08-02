@@ -2,6 +2,9 @@ import "server-only";
 import {auth} from "@/auth";
 import {prisma} from "@/lib/prisma";
 import type {Role} from "@prisma/client";
+import { cookies } from "next/headers";
+
+export const SELECTED_FIELD_COOKIE = "farmpulse_selected_field";
 
 export class SafeActionError extends Error {
   constructor(public code: "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION", message: string) {
@@ -40,13 +43,30 @@ export async function requireFarmContext() {
 
 export async function requireActiveField() {
   const context = await requireFarmContext();
+  let selectedFieldId: string | null = null;
+  try {
+    selectedFieldId = (await cookies()).get(SELECTED_FIELD_COOKIE)?.value ?? null;
+  } catch {
+    // Server actions executed outside a request (for example integration tests) use the first active field.
+  }
   const field = await prisma.field.findFirst({
-    where: {farmId: context.farm.id, status: "ACTIVE", deletedAt: null},
+    where: {
+      farmId: context.farm.id,
+      status: "ACTIVE",
+      deletedAt: null,
+      ...(selectedFieldId ? { id: selectedFieldId } : {}),
+    },
     orderBy: {createdAt: "asc"},
     select: {id: true, name: true, areaHa: true, status: true},
   });
-  if (!field) throw new SafeActionError("NOT_FOUND", "No active field is configured for this farm.");
-  return {...context, field};
+  if (field) return {...context, field};
+  const fallback = await prisma.field.findFirst({
+    where: { farmId: context.farm.id, status: "ACTIVE", deletedAt: null },
+    orderBy: [{ name: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, areaHa: true, status: true },
+  });
+  if (!fallback) throw new SafeActionError("NOT_FOUND", "No active field is configured for this farm.");
+  return { ...context, field: fallback };
 }
 
 export async function requireActiveCycle() {

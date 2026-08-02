@@ -17,7 +17,8 @@
     "db:seed:development": "tsx prisma/seed.ts",
     "db:initialize:production": "tsx scripts/initialize-production.ts",
     "db:cleanup:mock": "tsx scripts/cleanup-mock-data.ts",
-    "db:verify:production": "tsx scripts/verify-production.ts"
+    "db:verify:production": "tsx scripts/verify-production.ts",
+    "db:import:land-design": "tsx scripts/import-land-design.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

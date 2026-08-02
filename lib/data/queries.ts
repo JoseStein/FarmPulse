@@ -7,6 +7,7 @@ import { irrigationRecommendation } from "@/lib/utils";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { formatInTimeZone } from "date-fns-tz";
 import type { WeatherResult } from "@/lib/weather";
+import { LAND_DESIGN_SETTING_KEY, MAY_2024_LAND_DESIGN, type LandDesign } from "@/lib/land-design";
 
 const taskSelect = {
   id: true,
@@ -56,14 +57,33 @@ export async function getActiveField() {
 }
 export async function getShellData() {
   const context = await requireActiveCycle();
-  const [taskCount, notificationCount] = await Promise.all([
+  const [taskCount, notificationCount, fields] = await Promise.all([
     prisma.task.count({ where: { fieldId: context.field.id, status: { notIn: ["COMPLETED", "SKIPPED"] } } }),
     prisma.notification.count({ where: { userId: context.user.id, readAt: null } }),
+    prisma.field.findMany({
+      where: { farmId: context.farm.id, status: "ACTIVE", deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        cycles: {
+          where: { status: "ACTIVE" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { crop: { select: { name: true } } },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
   ]);
   return {
     user: { ...context.user, role: context.role },
     farm: { id: context.farm.id, name: context.farm.name },
     field: { id: context.field.id, name: context.field.name },
+    fields: fields.map((field) => ({
+      id: field.id,
+      name: field.name,
+      crop: field.cycles[0]?.crop.name ?? "No active crop",
+    })),
     crop: context.cycle.crop.name,
     taskCount,
     notificationCount,
@@ -327,6 +347,57 @@ export async function getLandPreparationData(weather: WeatherResult) {
   };
 }
 
+export async function getLandDesignData() {
+  const context = await requireActiveField();
+  const [setting, fields] = await Promise.all([
+    prisma.appSetting.findUnique({
+      where: { farmId_key: { farmId: context.farm.id, key: LAND_DESIGN_SETTING_KEY } },
+      select: { value: true, updatedAt: true },
+    }),
+    prisma.field.findMany({
+      where: { farmId: context.farm.id, status: "ACTIVE", deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        areaHa: true,
+        sectors: { select: { id: true, name: true, dripLines: true, status: true }, orderBy: { name: "asc" } },
+        cycles: {
+          where: { status: "ACTIVE" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            variety: true,
+            plannedPlantingDate: true,
+            actualPlantingDate: true,
+            crop: { select: { name: true } },
+            growthStage: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const design = (setting?.value as unknown as LandDesign | undefined) ?? MAY_2024_LAND_DESIGN;
+  return {
+    design,
+    persisted: Boolean(setting),
+    updatedAt: iso(setting?.updatedAt),
+    selectedFieldId: context.field.id,
+    fields: fields.map((field) => ({
+      ...field,
+      areaHa: decimal(field.areaHa)!,
+      cycle: field.cycles[0]
+        ? {
+            ...field.cycles[0],
+            plannedPlantingDate: iso(field.cycles[0].plannedPlantingDate),
+            actualPlantingDate: iso(field.cycles[0].actualPlantingDate),
+          }
+        : null,
+    })),
+  };
+}
+
 function displayTaskStatus(status: TaskStatus, dueAt: Date, timezone: string): TaskStatus {
   if (["COMPLETED", "SKIPPED", "IN_PROGRESS"].includes(status)) return status;
   const { start, end } = farmDayBounds(timezone);
@@ -447,7 +518,8 @@ export async function getActivityPageData() {
       orderBy: { name: "asc" },
     }),
   ]);
-  const flowM3h = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h ?? 11);
+  const configuredFlow = Number((design?.value as Record<string, unknown> | null)?.sectorFlowM3h);
+  const flowM3h = Number.isFinite(configuredFlow) && configuredFlow > 0 ? configuredFlow : null;
   return {
     field: { id: context.field.id, name: context.field.name },
     cycle: { id: context.cycle.id, cropId: context.cycle.crop.id, crop: context.cycle.crop.name },

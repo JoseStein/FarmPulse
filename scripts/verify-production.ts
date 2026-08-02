@@ -14,12 +14,27 @@ async function main() {
     prisma.fieldNote.count({ where: { fieldId: { in: fieldIds }, body: { startsWith: "Sample record:" } } }),
     prisma.issue.count({ where: { fieldId: { in: fieldIds }, description: { startsWith: "Sample issue:" } } }),
     prisma.inventoryItem.count({ where: { farmId, name: { in: ["Corn seed · Pioneer P4226", "Nitrogen fertilizer", "16 mm drip tape"] } } }),
-    prisma.equipment.count({ where: { farmId, name: { in: ["River intake pump", "Irrigation pressure pump", "24,000 L storage tank", "Main irrigation filter"] } } }),
+    prisma.equipment.count({ where: { farmId, name: { in: ["River intake pump", "Irrigation pressure pump", "24,000 L storage tank", "Main irrigation filter"] }, notes: null } }),
     prisma.irrigationEvent.count({ where: { sectorId: { in: sectorIds } } }),
     prisma.cropGuideArticle.count({ where: { guide: { crop: { name: "Corn" } }, sourceName: "Sample content — validate locally" } }),
   ]);
-  const cycle = farm.fields[0]?.cycles[0];
-  const checks: Record<string, boolean> = { administratorPresent: farm.memberships.some((m) => m.role === "ADMIN"), fieldPresent: farm.fields.length > 0, fourSectorsPresent: sectorIds.length === 4, activePlanningCycle: Boolean(cycle && ["Planning", "Land preparation"].includes(cycle.growthStage?.name ?? "")), noPlantingDates: Boolean(cycle && !cycle.plannedPlantingDate && !cycle.actualPlantingDate), noYieldOrHarvest: Boolean(cycle && !cycle.expectedYieldKg && !cycle.actualYieldKg && !cycle.expectedHarvestDate && !cycle.actualHarvestDate), noKnownMockOperations: [mockTasks, mockActivities, mockExpenses, mockNotes, mockIssues, mockInventory, mockEquipment, irrigation, sampleGuidance].every((count) => count === 0) };
+  const cycles = farm.fields.flatMap((field) => field.cycles);
+  const importedDesign = await prisma.appSetting.findUnique({ where: { farmId_key: { farmId, key: "land_design_may_2024" } } });
+  const lotNames = new Set(farm.fields.map((field) => field.name));
+  const cropCounts = cycles.reduce((counts, cycle) => ({ ...counts, [cycle.cropId]: (counts[cycle.cropId] ?? 0) + 1 }), {} as Record<string, number>);
+  const cornCrop = await prisma.crop.findUnique({ where: { name: "Corn" }, select: { id: true } });
+  const melonCrop = await prisma.crop.findUnique({ where: { name: "Melon" }, select: { id: true } });
+  const checks: Record<string, boolean> = {
+    administratorPresent: farm.memberships.some((m) => m.role === "ADMIN"),
+    fourPlannedLotsPresent: ["Lot 1", "Lot 2", "Lot 3", "Lot 4"].every((name) => lotNames.has(name)),
+    oneIrrigationZonePerLot: farm.fields.length === 4 && farm.fields.every((field) => field.sectors.length === 1),
+    twoCornAndTwoMelonCycles: Boolean(cornCrop && melonCrop && cropCounts[cornCrop.id] === 2 && cropCounts[melonCrop.id] === 2),
+    allCyclesPlanning: cycles.length === 4 && cycles.every((cycle) => ["Planning", "Land preparation"].includes(cycle.growthStage?.name ?? "")),
+    noPlantingDates: cycles.length === 4 && cycles.every((cycle) => !cycle.plannedPlantingDate && !cycle.actualPlantingDate),
+    noYieldOrHarvest: cycles.length === 4 && cycles.every((cycle) => !cycle.expectedYieldKg && !cycle.actualYieldKg && !cycle.expectedHarvestDate && !cycle.actualHarvestDate),
+    landDesignPersisted: Boolean(importedDesign),
+    noKnownMockOperations: [mockTasks, mockActivities, mockExpenses, mockNotes, mockIssues, mockInventory, mockEquipment, irrigation, sampleGuidance].every((count) => count === 0),
+  };
   console.log(JSON.stringify({ farm: { id: farm.id, name: farm.name }, checks }, null, 2));
   if (Object.values(checks).some((ok) => !ok)) throw new Error("Production verification failed.");
 }
