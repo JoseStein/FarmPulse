@@ -9,7 +9,7 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { @apply outline-none ring-2 ring-farm-500 ring-offset-2; }
 .card { @apply rounded-2xl border border-[#e3e9e5] bg-white shadow-card; }
 .label { @apply mb-1.5 block text-sm font-semibold text-[#385349]; }
-.input { @apply h-11 min-w-0 w-full rounded-xl border bg-white px-3 text-sm text-ink placeholder:text-slate-400; }
+.input { @apply h-11 min-w-0 w-full rounded-xl border bg-white px-3 text-base text-ink placeholder:text-slate-400 md:text-sm; }
 .btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-farm-700 px-4 text-sm font-semibold text-white transition hover:bg-farm-900 disabled:opacity-50; }
 .btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-white px-4 text-sm font-semibold text-ink transition hover:bg-farm-50; }
 .badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }

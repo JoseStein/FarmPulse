@@ -180,7 +180,7 @@ export function InventoryView({
               <button
                 type="button"
                 onClick={() => setEdit(null)}
-                className="grid size-10 place-items-center rounded-full bg-slate-100"
+                className="grid size-11 place-items-center rounded-full bg-slate-100"
               >
                 <X />
               </button>
@@ -299,7 +299,7 @@ export function InventoryView({
               <button
                 type="button"
                 onClick={() => setAdjust(null)}
-                className="grid size-10 place-items-center rounded-full bg-slate-100"
+                className="grid size-11 place-items-center rounded-full bg-slate-100"
               >
                 <X />
               </button>

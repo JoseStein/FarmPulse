@@ -173,7 +173,7 @@ export function EquipmentView({ data }: { data: { role: "ADMIN" | "OPERATOR"; it
               <button
                 type="button"
                 onClick={() => setMaintain(null)}
-                className="grid size-10 place-items-center rounded-full bg-slate-100"
+                className="grid size-11 place-items-center rounded-full bg-slate-100"
               >
                 <X />
               </button>
@@ -252,7 +252,7 @@ function EquipmentForm({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-10 place-items-center rounded-full bg-slate-100"
+            className="grid size-11 place-items-center rounded-full bg-slate-100"
           >
             <X />
           </button>

@@ -54,6 +54,21 @@ export function FarmMap({ sectors, timezone, selectedSectorId }: { sectors: Sect
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_330px]">
       <div className="card p-3 sm:p-5">
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:hidden" aria-label="Choose a working sector">
+          {sectors.map((sector, index) => (
+            <button
+              key={sector.id}
+              type="button"
+              onClick={() => chooseSector(index)}
+              disabled={pending}
+              aria-pressed={selected === index}
+              className={`min-h-14 rounded-xl border px-3 py-2 text-left ${selected === index ? "border-farm-600 bg-farm-50 text-farm-900" : "bg-white text-slate-600"}`}
+            >
+              <span className="block text-sm font-bold">{sector.name}</span>
+              <span className="block truncate text-xs">{sector.status}</span>
+            </button>
+          ))}
+        </div>
         <div className="relative overflow-hidden rounded-2xl bg-[#edf3e9] p-3 sm:p-7">
           <div
             className="absolute inset-0 opacity-25"

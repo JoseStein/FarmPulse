@@ -302,7 +302,7 @@ export function ExpensesView({ data, startNew = false }: { data: Data; startNew?
               <button
                 type="button"
                 onClick={() => {setOpen(false);setEditing(null)}}
-                className="grid size-10 place-items-center rounded-full bg-slate-100"
+                className="grid size-11 place-items-center rounded-full bg-slate-100"
               >
                 <X />
               </button>

@@ -119,7 +119,7 @@ export function TaskBoard({
             <button
               key={view}
               onClick={() => navigate(view, view === "sector" ? selectedSectorId ?? sectors[0]?.id : undefined)}
-              className={`min-h-10 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${activeView === view ? "bg-farm-700 text-white" : "text-slate-500"}`}
+              className={`min-h-11 whitespace-nowrap rounded-lg px-4 text-sm font-semibold ${activeView === view ? "bg-farm-700 text-white" : "text-slate-500"}`}
             >
               {labels[view]}
             </button>
@@ -300,7 +300,7 @@ export function TaskBoard({
               </div>
               <button
                 onClick={() => setDetail(null)}
-                className="grid size-10 place-items-center rounded-full bg-slate-100"
+                className="grid size-11 place-items-center rounded-full bg-slate-100"
               >
                 <X />
               </button>
@@ -395,7 +395,7 @@ function TaskCreateModal({
           <button
             type="button"
             onClick={onClose}
-            className="grid size-10 place-items-center rounded-full bg-slate-100"
+            className="grid size-11 place-items-center rounded-full bg-slate-100"
           >
             <X />
           </button>

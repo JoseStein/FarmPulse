@@ -42,7 +42,7 @@ When a crop name such as **Corn** appears on the Dashboard, Crop Cycle, Crop Gui
 
 ### Desktop and mobile navigation
 
-On a desktop or tablet, the primary operational blades appear in the left sidebar. On a phone, the bottom bar contains **Home**, **Map**, **Tasks**, **Log**, and **More**. To keep navigation compact, **Prepare Land** and **Land Design** are contextual actions inside Farm Map and the Dashboard, while **My Account** opens from the user profile/avatar.
+On a desktop or tablet, the primary operational blades appear in the left sidebar. On a phone, the bottom bar contains **Home**, **Map**, **Tasks**, **Log**, and **More**. **More** opens a role-aware menu containing every blade available to the signed-in user, together with My Account and Log out. To keep navigation compact, **Prepare Land** and **Land Design** remain contextual actions inside Farm Map and the Dashboard. The working-sector button in the compact mobile header opens Farm Map, while the profile button opens My Account.
 
 The mobile **Log** button opens shortcuts for:
 
@@ -57,7 +57,7 @@ These shortcuts open the corresponding full form; they do not save anything unti
 
 ### Notifications and logout
 
-The bell in the header indicates unread notifications when a count is available. To end a session, use **Log out** in the desktop sidebar or the logout icon in the mobile header. Always log out on a shared device.
+The bell in the desktop header indicates unread notifications when a count is available. To end a session, use **Log out** in the desktop sidebar or at the bottom of the mobile **More** menu. Always log out on a shared device.
 
 ## 2. Dashboard blade
 

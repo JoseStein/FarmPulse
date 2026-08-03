@@ -90,9 +90,9 @@ export function UserManagement({ members, currentUserId }: { members: Member[]; 
           <p className="truncate text-sm text-slate-500">{member.email}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select aria-label={`Role for ${member.name}`} className="input h-10 w-auto py-1" value={member.role} disabled={pending||member.id===currentUserId} onChange={event=>updateAccess(member,{role:event.target.value as Member["role"]})}><option value="OPERATOR">Operator</option><option value="ADMIN">Administrator</option></select>
-          {member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>updateAccess(member,{active:!member.active})} className={member.active?"btn-secondary h-10":"btn-primary h-10"}>{member.active?"Deactivate":"Activate"}</button>}
-          {!member.active&&member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>removeUser(member)} className="flex h-10 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 size={16}/>Remove</button>}
+          <select aria-label={`Role for ${member.name}`} className="input h-11 w-auto py-1" value={member.role} disabled={pending||member.id===currentUserId} onChange={event=>updateAccess(member,{role:event.target.value as Member["role"]})}><option value="OPERATOR">Operator</option><option value="ADMIN">Administrator</option></select>
+          {member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>updateAccess(member,{active:!member.active})} className={member.active?"btn-secondary h-11":"btn-primary h-11"}>{member.active?"Deactivate":"Activate"}</button>}
+          {!member.active&&member.id!==currentUserId&&<button type="button" disabled={pending} onClick={()=>removeUser(member)} className="flex h-11 items-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 size={16}/>Remove</button>}
         </div>
       </div>)}
     </div>
